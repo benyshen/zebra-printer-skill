@@ -212,7 +212,13 @@ def cmd_send(a) -> int:
               "bytes": len(zpl.encode("utf-8")), "preview": out})
         return 0
     if a.transport == "tcp":
-        res = transport.send_tcp(a.host, zpl, port=a.port, timeout=a.timeout)
+        host = a.host or default_host()
+        if not host:
+            emit({"ok": False, "stage": "send",
+                  "error": "no printer address: pass --host <ip> or set ZEBRA_HOST",
+                  "bytes": len(zpl.encode("utf-8"))})
+            return 1
+        res = transport.send_tcp(host, zpl, port=a.port, timeout=a.timeout)
     elif a.transport == "windows":
         res = transport.send_windows_printer(a.printer, zpl)
     elif a.transport == "usb":
@@ -250,7 +256,13 @@ def cmd_print(a) -> int:
         emit({"ok": True, "dry_run": True, "stage": "preview", "zpl": zpl,
               "issues": issues + check, "preview": preview})
         return 0
-    res = transport.send_tcp(a.host, zpl, port=a.port, timeout=a.timeout)
+    host = a.host or default_host()
+    if not host:
+        emit({"ok": False, "stage": "send", "zpl": zpl, "preview": preview,
+              "error": "no printer address: pass --host <ip> or set ZEBRA_HOST",
+              "bytes": len(zpl.encode("utf-8"))})
+        return 1
+    res = transport.send_tcp(host, zpl, port=a.port, timeout=a.timeout)
     emit({"ok": res.get("ok", True), "stage": "sent", "zpl": zpl,
           "preview": preview, "send": res})
     return 0 if res.get("ok", True) else 1
