@@ -58,6 +58,12 @@ $PY scripts/label.py print spec.json
 
 spec 的字段全表见 `references/spec-schema.md`（20 个顶层键、7 种 field type、28 种条码的位序与默认值）。
 
+### 表格框商品标签
+
+`examples/product-70x70.spec.json` —— 70×70 mm 模切料，三行：品名 / 五月花矿泉水 / EAN-13。改 `data` 就换品名和条码。
+
+![商品标签](examples/product-70x70-render.png)
+
 ## 子命令
 
 | 命令 | 作用 |
