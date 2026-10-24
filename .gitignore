@@ -1,0 +1,17 @@
+__pycache__/
+*.py[codz]
+.venv/
+venv/
+.idea/
+.vscode/
+
+# generated label artifacts
+scratch/
+*.preview.png
+*.preview.zpl
+label.png
+label.zpl
+
+# engine weights are never vendored (they live in the zebra-printer-mcp repo)
+data/ocr/
+*.onnx

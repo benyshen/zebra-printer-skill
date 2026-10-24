@@ -1,0 +1,21 @@
+{
+  "dpi": 203,
+  "width_mm": 70,
+  "height_mm": 70,
+  "char_encoding": 28,
+  "fields": [
+    {"type": "text", "data": "仓库标签", "x_dots": 16, "y_dots": 24,
+     "font_file": "E:SIMSUN.TTF", "size_dots": 48,
+     "block": {"width_dots": 527, "lines": 1, "alignment": "C"}},
+    {"type": "box", "x_dots": 16, "y_dots": 96, "width_dots": 527, "height_dots": 400, "thickness": 3},
+    {"type": "box", "x_dots": 16, "y_dots": 176, "width_dots": 527, "height_dots": 2, "thickness": 2},
+    {"type": "box", "x_dots": 16, "y_dots": 272, "width_dots": 527, "height_dots": 2, "thickness": 2},
+    {"type": "text", "data": "品名", "x_dots": 40, "y_dots": 120,
+     "font_file": "E:SIMSUN.TTF", "size_dots": 32},
+    {"type": "text", "data": "五朵花纯净水", "x_dots": 40, "y_dots": 196,
+     "font_file": "E:SIMSUN.TTF", "size_dots": 43},
+    {"type": "barcode", "symbology": "ean13", "data": "6934024512123",
+     "x_dots": 137, "y_dots": 312, "height_dots": 112,
+     "module_width": 3, "module_ratio": 3, "bar_height": 10}
+  ]
+}
