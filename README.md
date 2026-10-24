@@ -53,6 +53,14 @@ $PY scripts/label.py print    examples/warehouse-70x70.spec.json --host <打印�
 | `scripts/_bootstrap.py` | 定位并导入引擎 |
 | `tests/test_skill.py` | 自检（文件齐全、模板可校验、spec≡模板、三张条码表同集合、引用不断链） |
 
+## 能不能不装引擎？
+
+**不能**——本仓库是薄封装，引擎缺失时 `_bootstrap` 会直接报错并给出克隆命令（刻意如此，引擎修复能自动传导）。
+
+但**引擎 ≠ MCP**：不必注册 MCP 服务器、不必装 `mcp` 包，`label.py` 就能 build/validate/send/status。只有 `render` 需要 `[render]` extras（缺 `python-barcode` 时 1D 码降级为占位框，会列进 `approximated`）。
+
+要彻底独立得把 5 个模块（1,683 行 / ≈89 KB）+ `data/command_catalog.txt`（1.25 KB）拷进来，且必须保持 `src/zebra_mcp/` 与同级 `data/` 的布局——否则命令目录退化成 33 条，校验器会把 `^XA`/`^FO` 之类全报未知。详见 `SKILL.md` 的「依赖边界」。
+
 ## 自检
 
 ```bash

@@ -32,6 +32,31 @@ metadata:
 export ZEBRA_MCP_SRC=/path/to/zebra-printer-mcp/src
 ```
 
+## 依赖边界（什么能脱离什么）
+
+**这个 skill 离不开引擎**——引擎缺失时 `_bootstrap` 直接 `SystemExit` 并给出克隆命令。这是刻意的：引擎的修复能自动传导，不会分叉。
+
+但**引擎不等于 MCP**。三层依赖是分开的：
+
+| 能力 | 需要引擎 | 需要 `mcp` SDK | 需要 `[render]` extras |
+|---|---|---|---|
+| `build` / `validate` | ✅ | ❌ | ❌ |
+| `send`（tcp/windows/usb） | ✅ | ❌ | ❌ |
+| `status` | ✅ | ❌（无 SDK 时走本地 `~HS` 回退） | ❌ |
+| `render` | ✅ | ❌ | ✅ pillow/segno/python-barcode |
+
+也就是说：**不必注册 MCP 服务器、不必装 `mcp` 包**，`label.py` 就能建模、校验、查看、打印、查状态。只有想用 agent 的工具调用形态时，才需要把 server 注册进客户端。
+
+`render` 缺 `python-barcode` 时不会崩，但 1D 码只画占位框，并把它列进返回的 `approximated[]`——所以**看 `approximated` 是否为空**就知道这张预览的可信度。
+
+### 想彻底独立？代价是分叉
+
+需要把 5 个模块拷进来：`builder.py` / `knowledge.py` / `catalog.py` / `transport.py` / `render.py`（合计 **1,683 行、≈89 KB**），外加 `data/command_catalog.txt`（**1.25 KB**）。
+
+布局必须保持 `src/zebra_mcp/` 与**同级**的 `data/`——`knowledge.py` 用 `Path(__file__).parents[2] / "data"` 找目录。实测把包单独装进 site-packages（`data/` 不在相对位置）时：命令目录退化成 **33 条**，连 `^XA`/`^FO`/`^FD`/`^FS`/`^XZ` 都被报 `UNKNOWN_CMD`，校验器直接失去意义。这一步比“拷文件”更容易踩。
+
+代价：引擎更新不会自动进来，得手动 rebase。**建议保持薄封装**——除非要在完全无网络的机器上离线分发。
+
 ## 资产地图
 
 | 路径 | 内容 |

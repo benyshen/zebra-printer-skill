@@ -79,9 +79,18 @@ def cmd_validate(a) -> int:
 def cmd_render(a) -> int:
     try:
         from zebra_mcp import render as renderer
-    except ImportError:
-        emit({"ok": False, "error": "render needs the [render] extra: "
-              "pip install -e '.[render]' in the zebra-printer-mcp checkout"})
+    except ImportError as exc:
+        # Distinguish "module not shipped/vendored" from "module present but the
+        # optional image libs are missing" — the old message blamed the extra
+        # even when render.py was simply absent.
+        msg = str(exc)
+        if "zebra_mcp.render" in msg or "cannot import name" in msg:
+            emit({"ok": False, "error": f"render module not available: {msg}. "
+                  "The engine checkout (or a vendored copy) must include "
+                  "src/zebra_mcp/render.py."})
+        else:
+            emit({"ok": False, "error": f"render needs the image libs: {msg}. "
+                  "Install them: pip install -e '.[render]' in the engine checkout."})
         return 1
     zpl = read_text(a.file)
     result = renderer.render(zpl, scale=max(1, a.scale), out=a.out or None)
@@ -90,9 +99,10 @@ def cmd_render(a) -> int:
 
 
 def cmd_status(a) -> int:
-    """Delegate to the engine's own printer_status so the status-word parsing
-    (~HS line 3, STX/ETX framed) is not duplicated here. The MCP tool decorator
-    returns the plain function, so it is directly callable."""
+    """Query status. Prefer the engine's own printer_status so the ~HS parsing
+    (~HS line 3, STX/ETX framed) is not duplicated; that lives in
+    zebra_mcp.server, which imports FastMCP — so fall back to a local read when
+    the MCP SDK is not installed."""
     try:
         from zebra_mcp import server as _server
         fn = getattr(_server, "printer_status", None)
@@ -100,9 +110,72 @@ def cmd_status(a) -> int:
             raise ImportError("printer_status missing from zebra_mcp.server")
         print(fn(host=a.host, port=a.port, timeout=a.timeout))
         return 0
-    except Exception as exc:
-        emit({"ok": False, "error": f"{type(exc).__name__}: {exc}", "host": a.host})
-        return 1
+    except ImportError:
+        pass                      # no MCP SDK (or no server module) -> local read
+    emit(read_status(a.host, a.port, a.timeout))
+    return 0
+
+
+def read_status(host: str, port: int = 9100, timeout: float = 5.0) -> dict:
+    """Minimal ~HI / ~HS probe, no MCP SDK needed.
+
+    ~HS is three STX/ETX-framed lines; the status word is the 4 digits that open
+    the THIRD line. Do not scan every 4-digit token: line 1 field 4 (e.g. 0559)
+    is not a status word and will be picked up by a naive scan.
+    """
+    import re as _re
+    import socket
+
+    def _read(sock, payload: bytes) -> str:
+        sock.sendall(payload)
+        sock.settimeout(timeout)
+        buf = b""
+        while True:
+            try:
+                chunk = sock.recv(4096)
+            except socket.timeout:
+                break
+            if not chunk:
+                break
+            buf += chunk
+            sock.settimeout(0.5)      # data arrived -> short idle window
+        return buf.decode("utf-8", "replace").strip("\x02\x03 \r\n")
+
+    out: dict = {"ok": False, "host": host, "port": port}
+    try:
+        with socket.create_connection((host, port), timeout=timeout) as s:
+            ident = _read(s, b"~HI\r\n")
+            hs = _read(s, b"~HS\r\n")
+    except OSError as exc:
+        out["error"] = f"{type(exc).__name__}: {exc}"
+        return out
+
+    out["ok"] = bool(ident or hs)
+    if ident:
+        bits = ident.split(",")
+        out["identification"] = {"printer": bits[0]}
+        for key, i in (("firmware", 1), ("dots_per_mm", 2), ("memory", 3)):
+            if len(bits) > i:
+                out["identification"][key] = bits[i]
+    code = None
+    for raw in reversed(hs.replace("\x02", "").replace("\x03", "").split("\n")):
+        m = _re.match(r"^\s*(\d{4})\b", raw)
+        if m:
+            code = m.group(1)
+            break
+    if code:
+        note = {"0000": ("PRINTER READY", "ok"),
+                "0001": ("HEAD OPEN", "error"), "0002": ("HEAD OPEN", "error"),
+                "0003": ("HEAD TOO HOT", "error"), "0004": ("HEAD COLD", "error"),
+                "0005": ("MEDIA OUT", "error"), "0006": ("RIBBON OUT", "error"),
+                "0007": ("REWINDER FULL", "warn"), "0008": ("PAUSED", "warn"),
+                "0009": ("HEAD ELEMENT BAD", "error"),
+                "00A0": ("CUTTER FAULT", "error")}.get(code, ("UNKNOWN STATUS WORD", "warn"))
+        out["status"] = {"code": code, "name": note[0], "level": note[1]}
+    else:
+        out["status"] = None
+    out["ready"] = bool(out.get("status") and out["status"]["code"] == "0000")
+    return out
 
 
 def cmd_send(a) -> int:
