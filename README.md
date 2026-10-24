@@ -33,7 +33,7 @@ export ZEBRA_HOST=<打印机IP>              # 打印机地址，设一次
 $PY scripts/label.py status              # 0000 = PRINTER READY
 ```
 
-## 两条主用法
+## 三种主用法
 
 **照片 -> ZPL -> 打印**
 
@@ -64,6 +64,16 @@ spec 的字段全表见 `references/spec-schema.md`（20 个顶层键、7 种 fi
 
 ![商品标签](examples/product-70x70-render.png)
 
+**批量 Excel -> 一批标签**
+
+```bash
+$PY scripts/label.py xlsx examples/employees.xlsx --width 50 --height 30 \
+    --dry-run --preview scratch/first.png
+$PY scripts/label.py xlsx examples/employees.xlsx --width 50 --height 30
+```
+
+A 列文字、B 列条码，一行一条标签。整批拼成**一条 ZPL 流、一次 TCP 连接**发出去，回显只读一次。列可以给 Excel 字母（`A`）、序号（`2`）或表头名（`--name-column 姓名`）。**条码列必须是 ASCII**，中文放文字列。
+
 ## 子命令
 
 | 命令 | 作用 |
@@ -76,6 +86,8 @@ spec 的字段全表见 `references/spec-schema.md`（20 个顶层键、7 种 fi
 | `send <file.zpl>` | 发送（tcp / windows 队列 / usb） |
 | `print <spec.json>` | build+validate+render+send |
 | `printers` | 列 Windows 打印队列 |
+| `xlsx <file.xlsx>` | 一行一条标签（姓名 + Code128），整批拼一条 ZPL 流 |
+| `knowledge [query]` | 查 ZPL 手册：`--mode command/search/barcodes/sgd/status/list` |
 
 全部输出 JSON，出错退出码 1。
 
@@ -83,12 +95,13 @@ spec 的字段全表见 `references/spec-schema.md`（20 个顶层键、7 种 fi
 
 | 路径 | 内容 |
 |---|---|
-| `SKILL.md` | 触发条件、安装、两条主任务、停止判据、七条纪律 |
+| `SKILL.md` | 触发条件、安装、三条主任务、停止判据、七条纪律 |
 | `references/spec-schema.md` | label spec 全键表 + 28 制式位序 |
 | `references/calibration.md` | 照片复刻六条校准规则（实机 99%） |
 | `vendor/src/zebra_mcp/` | 引擎本体，10 个模块，无 MCP 服务端 |
 | `vendor/data/` | 命令目录 253 条 + PP-OCRv4 模型 15 MB |
-| `templates/` `examples/` | 两张实机验证过的 70x70 标签 |
+| `templates/` | 两张实机验证过的 70×70 标签 |
+| `examples/` | 商品标签 spec + 渲染图 + 员工表样例（`xlsx` 用） |
 | `scripts/` | `setup.py` / `label.py` / `_bootstrap.py` |
 | `tests/test_skill.py` | 自检 |
 

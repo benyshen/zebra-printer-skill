@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -179,5 +180,52 @@ assert res.get("ok"), res
 assert out.is_file() and out.stat().st_size > 1000, "render produced no png"
 assert tuple(res["dots"]) == (559, 559), res["dots"]
 print(f"render ok: {out.name}, dots={res['dots']}, drawn={len(res.get('drawn', []))}")
+
+# ---------------------------------------------------------------- 8. CLI surface
+
+line("cli surface")
+CLI = ROOT / "scripts" / "label.py"
+SUBS = ["build", "validate", "render", "status", "send", "print",
+        "photo", "printers", "knowledge", "xlsx"]
+help_txt = subprocess.run([sys.executable, str(CLI), "--help"],
+                          capture_output=True, text=True, cwd=str(ROOT)).stdout
+missing_subs = [s for s in SUBS if s not in help_txt]
+assert not missing_subs, f"subcommands missing from --help: {missing_subs}"
+print(f"{len(SUBS)} subcommands exposed")
+
+
+def run_cli(args: list[str]) -> dict:
+    r = subprocess.run([sys.executable, str(CLI)] + args,
+                       capture_output=True, text=True, cwd=str(ROOT))
+    assert r.returncode == 0, (args, r.returncode, r.stdout[-500:], r.stderr[-500:])
+    return json.loads(r.stdout)
+
+
+line("knowledge")
+lst = run_cli(["knowledge", "--mode", "list"])
+assert lst["count"] == 253, lst["count"]
+bc = run_cli(["knowledge", "--mode", "barcodes"])
+assert len(bc["supported_by_build"]) == 28, len(bc["supported_by_build"])
+assert set(bc["supported_by_build"]) == specs, "barcodes mode disagrees with BARCODE_SPECS"
+by = run_cli(["knowledge", "BY"])
+assert by["found"] and by["syntax"].startswith("^BY"), by
+assert "ratio" in by["defaults"], by
+sw = run_cli(["knowledge", "--mode", "sgd"])
+st = run_cli(["knowledge", "--mode", "status"])
+sr = run_cli(["knowledge", "darkness", "--mode", "search"])
+assert sw["count"] and st["count"] and sr["results"], (sw["count"], st["count"], sr["results"])
+print(f"list=253, barcodes=28, sgd={sw['count']}, status={st['count']}, "
+      f"search('darkness')={len(sr['results'])}, ^BY lookup ok")
+
+line("xlsx")
+x = run_cli(["xlsx", "examples/employees.xlsx", "--width", "50", "--height", "30", "--dry-run"])
+assert x["ok"], x
+assert x["labels"] == 3, x["labels"]
+assert x["rows_read"] == 4, x["rows_read"]          # 3 data rows + header
+assert x["first_label"].startswith("^XA") and x["first_label"].endswith("^XZ"), x["first_label"]
+assert Path(x["zpl_file"]).is_file(), x["zpl_file"]
+job = Path(x["zpl_file"]).read_text(encoding="utf-8")
+assert job.count("^XA") == 3 and job.count("^XZ") == 3, (job.count("^XA"), job.count("^XZ"))
+print(f"xlsx: rows_read=4 -> labels=3, one stream of {len(job)} chars, 3 ^XA/^XZ pairs")
 
 print("\nALL CHECKS PASSED")

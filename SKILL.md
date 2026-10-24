@@ -1,6 +1,6 @@
 ---
 name: zebra-printer-skill
-version: 0.2.0
+version: 0.3.0
 author: Hermes (Nous Research)
 license: MIT
 description: 打 ZPL 标签、把标签照片转成 ZPL、用自然语言打标签时加载。自带引擎与 OCR 模型，只需一次 setup，不依赖其它仓库或 MCP 客户端。
@@ -105,6 +105,36 @@ $PY scripts/label.py print spec.json                                     # 再�
 
 必须由用户给、不要猜的四个物理事实：**标签尺寸、dpi、打印机地址、份数**。猜错不报错，只会打出废纸。
 
+## 任务 C：批量打 Excel / 查手册
+
+一行一条标签（文字 + Code 128），整批拼成**一条 ZPL 流、一次 TCP 连接**发出，回显只读一次：
+
+```bash
+$PY scripts/label.py xlsx 员工名单.xlsx --width 50 --height 30 \
+    --dry-run --preview scratch/first.png        # 先看第一条
+$PY scripts/label.py xlsx 员工名单.xlsx --width 50 --height 30
+```
+
+| 参数 | 说明 |
+|---|---|
+| `--name-column` / `--id-column` | Excel 字母（`A`）、1 起序号（`2`）或表头名（`姓名`）；默认 `A` / `B` |
+| `--no-header` | 第一行是数据而非表头（默认当表头跳过） |
+| `--max-labels` | 安全阀，默认 2000；超出直接拒绝而不是打废纸 |
+| `--sheet` | 工作表名，默认第一张 |
+
+**条码列必须是 ASCII**（数字、字母、`-`）。中文姓名放文字列——中文塞进 Code 128 打出来是乱码。
+
+查手册（别凭记忆写 ZPL）：
+
+```bash
+$PY scripts/label.py knowledge BY               # 精确命令，^ 可省
+$PY scripts/label.py knowledge "darkness|speed" --mode search
+$PY scripts/label.py knowledge --mode barcodes   # 28 制式 + 参数规则 + ^BY 默认值
+$PY scripts/label.py knowledge --mode sgd        # 27 条 SGD
+$PY scripts/label.py knowledge --mode status     # 13 个状态码
+$PY scripts/label.py knowledge --mode list       # 253 个命令字
+```
+
 ## 停止判据
 
 | 看到什么 | 含义 | 动作 |
@@ -117,6 +147,8 @@ $PY scripts/label.py print spec.json                                     # 再�
 | `status` 的 `status.code != "0000"` | 打印机没准备好 | 看 `name`（缺纸/开盖/过热） |
 | `send` 的 `response` 为空 | ZPL 无语法错（正常） | 成功 |
 | `send` 的 `response` 含 `?` 或报错串 | 打印机拒收 | 读回显定位 |
+| `labels` 为 0 | 表头没跳过或列选错 | 检查 `--no-header`、`--id-column` |
+| `rows_read` 比 `labels` 大很多 | 有条码列空白的行被跳过 | 正常；值不符就回去看表 |
 | `render` 的 `approximated` 非空 | 预览有降级（DataMatrix/PDF417/复杂图形） | 预览别当准，实打验证 |
 
 ## 硬性纪律
@@ -138,7 +170,7 @@ $PY scripts/label.py print spec.json                                     # 再�
 | 路径 | 内容 |
 |---|---|
 | `scripts/setup.py` | 建 `.venv` + 装依赖；`--check` 只检查 |
-| `scripts/label.py` | `photo` / `build` / `validate` / `render` / `status` / `send` / `print` / `printers` |
+| `scripts/label.py` | `photo` / `build` / `validate` / `render` / `status` / `send` / `print` / `printers` / `knowledge` / `xlsx` |
 | `scripts/_bootstrap.py` | 定位并导入内置引擎（`vendor/src` 优先） |
 | `vendor/src/zebra_mcp/` | 引擎本体（10 个模块，无 `server.py`：不需要 MCP） |
 | `vendor/data/` | 命令目录 253 条 + PP-OCRv4 模型（15 MB） |
@@ -146,6 +178,8 @@ $PY scripts/label.py print spec.json                                     # 再�
 | `references/calibration.md` | 照片复刻六条校准规则（实机验证） |
 | `templates/` | 两张 70x70 标签（ZR668 实机确认"输出完全正确"） |
 | `examples/warehouse-70x70.spec.json` | 上面那张标签的 spec，可直接改 |
+| `examples/product-70x70.spec.json` | 表格框商品标签（品名/五月花矿泉水/EAN-13），实机打印过 |
+| `examples/employees.xlsx` | `xlsx` 子命令的样例表：A 列姓名、B 列工号，3 行 |
 
 ## 自检
 

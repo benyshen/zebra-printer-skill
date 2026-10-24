@@ -11,6 +11,10 @@ Subcommands (all print JSON on stdout, exit 1 on error):
   send      <file.zpl> [--host ...] [--dry-run]
   print     <spec.json> [--host ...] [--dry-run]  build -> validate -> render -> send
   printers                                      list Windows printer queues
+  knowledge [query] [--mode command|search|barcodes|sgd|status|list]
+                                                ZPL manual: commands, symbologies, SGD, status codes
+  xlsx      <file.xlsx> [--name-column A --id-column B]
+                                                one label per row (name + Code128), one ZPL stream
 
 The engine ships inside this skill (vendor/src), so no second repository and no
 MCP client are needed. ZEBRA_HOST sets the default printer address.
@@ -274,6 +278,147 @@ def cmd_printers(a) -> int:
     return 0
 
 
+def cmd_knowledge(a) -> int:
+    """Ground answers in the ZPL manual instead of guessing.
+
+    Same five modes as the MCP tool: command / search / barcodes / sgd / status / list.
+    """
+    mode = (a.mode or "command").lower()
+    q = (a.query or "").strip()
+
+    if mode == "command":
+        if not q:
+            emit({"ok": False, "error": "command mode needs a query, e.g. '^BY' or 'BY'"})
+            return 1
+        token = q if q.startswith(("^", "~")) else "^" + q
+        hit = knowledge.get_command(token)
+        if hit is None:
+            emit({"ok": True, "found": False, "query": token,
+                  "similar": knowledge.search(q.lstrip("^~"), limit=8),
+                  "hint": "try --mode search, or --mode list for every token"})
+            return 0
+        emit({"found": True, **hit, "ok": True})
+        return 0
+
+    if mode == "search":
+        emit({"ok": True, "pattern": q or ".", "results": knowledge.search(q or ".", limit=a.limit)})
+        return 0
+
+    if mode == "barcodes":
+        emit({"ok": True, "symbologies": knowledge.BARCODE_NOTES,
+              "supported_by_build": sorted(builder.BARCODE_SPECS),
+              "global_defaults": {"^BY": "width 2 dots, ratio 3.0, height 10 dots (manual p.148)"}})
+        return 0
+
+    if mode == "sgd":
+        items = {k: v for k, v in knowledge.SGD_COMMANDS.items()
+                 if not q or q.lower() in k.lower()}
+        emit({"ok": True, "count": len(items), "sgd": items,
+              "note": "SGD runs outside ^XA/^XZ over raw TCP 9100; `status` runs a live getvar."})
+        return 0
+
+    if mode == "status":
+        items = {k: v for k, v in knowledge.STATUS_NOTES.items()
+                 if not q or q.lower() in (k + v.get("name", "")).lower()}
+        emit({"ok": True, "count": len(items), "status_codes": items})
+        return 0
+
+    if mode == "list":
+        cmds = sorted(knowledge.known_commands())
+        emit({"ok": True, "count": len(cmds), "commands": cmds})
+        return 0
+
+    emit({"ok": False, "error": f"unknown mode '{mode}' (command/search/barcodes/sgd/status/list)"})
+    return 1
+
+
+def cmd_xlsx(a) -> int:
+    """One label per row of an .xlsx: a centred name plus a centred Code 128.
+
+    All labels go out as ONE ZPL stream on ONE TCP connection, so the printer
+    echo is read once instead of once per label.
+    """
+    from zebra_mcp import xlsx_batch
+
+    path = a.xlsx
+    if not path.lower().endswith((".xlsx", ".xlsm")):
+        emit({"ok": False, "error": f"{path}: only .xlsx/.xlsm is supported (not .xls)"})
+        return 1
+    try:
+        rows = xlsx_batch.read_xlsx_rows(path, a.sheet or None)
+    except FileNotFoundError:
+        emit({"ok": False, "error": f"file not found: {path}"})
+        return 1
+    except Exception as exc:
+        emit({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        return 1
+    if not rows:
+        emit({"ok": False, "error": "sheet is empty"})
+        return 1
+
+    specs = xlsx_batch.plan_specs(
+        rows, a.name_column, a.id_column,
+        width_mm=a.width, height_mm=a.height,
+        name_size_mm=a.name_size, barcode_height_mm=a.barcode_height,
+        module_width=a.module_width, skip_header=not a.no_header)
+    if not specs:
+        emit({"ok": False, "rows_read": len(rows),
+              "error": f"no printable rows (id column {a.id_column!r} is empty everywhere)"})
+        return 1
+    if len(specs) > a.max_labels:
+        emit({"ok": False, "rows_read": len(rows), "labels": len(specs),
+              "error": f"{len(specs)} labels exceeds --max-labels {a.max_labels}; "
+                       "raise it explicitly if that is intended"})
+        return 1
+
+    job, issues = xlsx_batch.build_job(specs)
+    errs = errors_of(issues)
+
+    zpl_file = Path(a.out or "scratch/xlsx_job.zpl")
+    zpl_file.parent.mkdir(parents=True, exist_ok=True)
+    zpl_file.write_text(job, encoding="utf-8")
+    first_label = job.split("^XZ")[0] + "^XZ"
+
+    out = {"ok": not errs, "labels": len(specs), "rows_read": len(rows),
+           "columns": {"name": a.name_column, "id": a.id_column},
+           "bytes": len(job.encode("utf-8")), "errors": len(errs),
+           "issues": issues[:50], "issues_truncated": len(issues) > 50,
+           "zpl_file": str(zpl_file), "first_label": first_label}
+
+    preview = None
+    try:                                          # preview of the FIRST label only
+        from zebra_mcp import render as renderer
+        png = Path(a.preview or "scratch/xlsx_first.png")
+        png.parent.mkdir(parents=True, exist_ok=True)
+        res = renderer.render(first_label, scale=a.scale, out=str(png))
+        preview = res.get("png") or str(png)
+    except Exception as exc:
+        preview = f"unavailable: {type(exc).__name__}"
+    out["preview"] = preview
+
+    if errs:
+        out["stage"] = "build"
+        emit(out)
+        return 1
+    if a.dry_run:
+        out.update({"dry_run": True, "stage": "preview"})
+        emit(out)
+        return 0
+
+    host = a.host or default_host()
+    if not host:
+        out.update({"stage": "send",
+                    "error": "no printer address: pass --host <ip> or set ZEBRA_HOST"})
+        emit(out)
+        return 1
+
+    res = transport.send_tcp(host, job, port=a.port, timeout=a.timeout)
+    out.update({"stage": "sent", "host": host, "send": res})
+    out["ok"] = res.get("ok", True)
+    emit(out)
+    return 0 if out["ok"] else 1
+
+
 def cmd_photo(a) -> int:
     """Photo of an existing label -> ZPL (and optionally print it).
 
@@ -412,8 +557,36 @@ def main() -> int:
     lp = sub.add_parser("printers", help="list Windows printer queues")
     lp.set_defaults(fn=cmd_printers)
 
+    k = sub.add_parser("knowledge", help="ZPL manual lookups: commands, symbologies, SGD, status codes")
+    k.add_argument("query", nargs="?", default="", help="command token / regex / filter")
+    k.add_argument("--mode", default="command",
+                   choices=["command", "search", "barcodes", "sgd", "status", "list"])
+    k.add_argument("--limit", type=int, default=25, help="max results in search mode")
+    k.set_defaults(fn=cmd_knowledge)
+
+    x = sub.add_parser("xlsx", help="one label per row: name + Code128, one ZPL stream")
+    x.add_argument("xlsx", help="the .xlsx/.xlsm file")
+    x.add_argument("--name-column", default="A", help="Excel letter, 1-based index, or header name")
+    x.add_argument("--id-column", default="B", help="column holding the barcode data")
+    x.add_argument("--sheet", default="", help="sheet name (default: first sheet)")
+    x.add_argument("--width", type=float, default=50.0, help="label width mm")
+    x.add_argument("--height", type=float, default=30.0, help="label height mm")
+    x.add_argument("--name-size", type=float, default=4.0, help="name text height mm")
+    x.add_argument("--barcode-height", type=float, default=10.0, help="bar height mm")
+    x.add_argument("--module-width", type=int, default=3)
+    x.add_argument("--no-header", action="store_true", help="first row is data, not a header")
+    x.add_argument("--max-labels", type=int, default=2000)
+    x.add_argument("--host", default="")
+    x.add_argument("--port", type=int, default=9100)
+    x.add_argument("--timeout", type=float, default=10.0)
+    x.add_argument("--dry-run", action="store_true")
+    x.add_argument("--out", help="save the combined .zpl here")
+    x.add_argument("--preview", help="preview png of the first label")
+    x.add_argument("--scale", type=int, default=2)
+    x.set_defaults(fn=cmd_xlsx)
+
     a = p.parse_args()
-    if a.cmd in ("send", "print", "photo") and not getattr(a, "host", ""):
+    if a.cmd in ("send", "print", "photo", "xlsx") and not getattr(a, "host", ""):
         a.host = default_host()
     return a.fn(a)
 
