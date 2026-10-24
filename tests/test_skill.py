@@ -36,10 +36,12 @@ ENGINE_MODULES = ["__init__", "builder", "catalog", "knowledge", "transport",
                   "render", "photo", "ocr", "vision", "xlsx_batch"]
 required = [
     "SKILL.md", "README.md", "LICENSE", ".gitignore", "requirements.txt",
+    "docs/install.md", "vendor/PROVENANCE.md",
     "scripts/setup.py", "scripts/label.py", "scripts/_bootstrap.py",
     "references/calibration.md", "references/spec-schema.md",
     "templates/warehouse-label-70x70.zpl", "templates/photo-reprint-70x70.zpl",
-    "examples/warehouse-70x70.spec.json", "tests/test_skill.py",
+    "examples/warehouse-70x70.spec.json", "examples/product-70x70.spec.json",
+    "tests/test_skill.py",
     "vendor/data/command_catalog.txt",
     "vendor/data/ocr/ch_PP-OCRv4_det_infer.onnx",
     "vendor/data/ocr/ch_PP-OCRv4_rec_infer.onnx",

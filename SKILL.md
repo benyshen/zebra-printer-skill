@@ -30,6 +30,8 @@ python scripts/setup.py --check  # 只检查，不安装
 
 成功最后一行是 `READY: <skill>/.venv/Scripts/python.exe`。
 
+装不上、要换镜像、要接 Windows 队列或 USB、要看依赖清单——把用户指向 `docs/install.md`（人看的完整安装与排错文档）。
+
 之后**所有命令都用这个解释器**（下文记作 `$PY`）：
 
 ```bash
@@ -42,7 +44,7 @@ PY="<skill>/.venv/bin/python"              # macOS / Linux
 ## 打印机地址
 
 ```bash
-export ZEBRA_HOST=192.168.28.90     # 设一次，后续不用再写 --host
+export ZEBRA_HOST=<打印机IP>        # 设一次，后续不用再写 --host
 $PY scripts/label.py printers       # 不知道地址时先列 Windows 打印队列
 $PY scripts/label.py status         # 确认 0000 = PRINTER READY 再打
 ```

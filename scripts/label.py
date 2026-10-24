@@ -7,7 +7,7 @@ Subcommands (all print JSON on stdout, exit 1 on error):
   build     <spec.json> [--out label.zpl]       spec -> ZPL + issues
   validate  <file.zpl|spec.json>                syntax/manual check
   render    <file.zpl> [--scale 2] [--out x.png]
-  status    [--host 192.168.28.90]              ~HI/~HS reachability + status word
+  status    [--host <printer-ip>]              ~HI/~HS reachability + status word
   send      <file.zpl> [--host ...] [--dry-run]
   print     <spec.json> [--host ...] [--dry-run]  build -> validate -> render -> send
   printers                                      list Windows printer queues

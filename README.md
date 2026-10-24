@@ -4,6 +4,16 @@
 
 不需要克隆 `zebra-printer-mcp`，不需要注册 MCP 服务器，不需要 MCP SDK。装好这个目录、跑一次 setup 即可。
 
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [`docs/install.md`](docs/install.md) | **完整安装与配置**：三种安装位置、依赖清单与离线安装、打印机三种接法、验证、升级、卸载、故障排查表 |
+| [`SKILL.md`](SKILL.md) | agent 用的操作手册：触发条件、两条主任务、停止判据、硬性纪律 |
+| [`references/spec-schema.md`](references/spec-schema.md) | label spec 全键表、28 种条码的参数位序与默认值 |
+| [`references/calibration.md`](references/calibration.md) | 照片复刻六条校准规则（实机 99%） |
+| [`vendor/PROVENANCE.md`](vendor/PROVENANCE.md) | 内置引擎的来源与上游同步方法 |
+
 ## 安装（干净机器，一次性）
 
 ```bash
@@ -19,7 +29,7 @@ PY="<skill>/.venv/bin/python"            # macOS / Linux
 ```
 
 ```bash
-export ZEBRA_HOST=192.168.28.90          # 打印机地址，设一次
+export ZEBRA_HOST=<打印机IP>              # 打印机地址，设一次
 $PY scripts/label.py status              # 0000 = PRINTER READY
 ```
 

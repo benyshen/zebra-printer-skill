@@ -1,0 +1,21 @@
+{
+  "dpi": 203,
+  "width_mm": 70,
+  "height_mm": 70,
+  "char_encoding": 28,
+  "fields": [
+    {"type": "box", "x_dots": 16, "y_dots": 16, "width_dots": 527, "height_dots": 527, "thickness": 3},
+    {"type": "box", "x_dots": 16, "y_dots": 120, "width_dots": 527, "height_dots": 2, "thickness": 2},
+    {"type": "box", "x_dots": 16, "y_dots": 290, "width_dots": 527, "height_dots": 2, "thickness": 2},
+
+    {"type": "text", "data": "品名：", "x_dots": 40, "y_dots": 48,
+     "font_file": "E:SIMSUN.TTF", "size_dots": 40},
+
+    {"type": "text", "data": "五月花矿泉水", "x_dots": 40, "y_dots": 175,
+     "font_file": "E:SIMSUN.TTF", "size_dots": 60},
+
+    {"type": "barcode", "symbology": "ean13", "data": "6934024512123",
+     "x_dots": 137, "y_dots": 300, "height_dots": 170,
+     "module_width": 3, "module_ratio": 3}
+  ]
+}
