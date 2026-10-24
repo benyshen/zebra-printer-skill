@@ -1,0 +1,12 @@
+# Everything the skill needs at runtime. Installed into <skill>/.venv by
+# scripts/setup.py — the skill does not touch the system interpreter.
+#
+# build / validate / send / status work with NO third-party package at all;
+# these are only needed for render (photos: pillow) and photo->ZPL (the rest).
+pillow>=10.0
+segno>=1.6
+python-barcode>=0.16
+opencv-python-headless>=4.9
+numpy>=1.26
+onnxruntime>=1.17
+zxing-cpp>=3.1

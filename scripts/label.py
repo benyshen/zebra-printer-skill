@@ -2,20 +2,25 @@
 
 Subcommands (all print JSON on stdout, exit 1 on error):
 
-  build     <spec.json> [--out label.zpl]   spec -> ZPL + issues
-  validate  <file.zpl|spec.json>            syntax/manual check
+  photo     <image> [--width 70 --height 70] [--paper 76] [--dry-run]
+                                                photo of a label -> ZPL (+ print)
+  build     <spec.json> [--out label.zpl]       spec -> ZPL + issues
+  validate  <file.zpl|spec.json>                syntax/manual check
   render    <file.zpl> [--scale 2] [--out x.png]
-  status    --host 192.168.28.90            ~HI/~HS reachability + status word
-  send      <file.zpl> --host ... [--dry-run]
-  print     <spec.json> --host ... [--dry-run]    build -> validate -> render -> send
+  status    [--host 192.168.28.90]              ~HI/~HS reachability + status word
+  send      <file.zpl> [--host ...] [--dry-run]
+  print     <spec.json> [--host ...] [--dry-run]  build -> validate -> render -> send
+  printers                                      list Windows printer queues
 
-The engine is not vendored here; _bootstrap locates the zebra-printer-mcp
-checkout (ZEBRA_MCP_SRC, a side-by-side directory, or E:\\workspace\\...).
+The engine ships inside this skill (vendor/src), so no second repository and no
+MCP client are needed. ZEBRA_HOST sets the default printer address.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -44,6 +49,11 @@ def errors_of(issues: list) -> list:
 
 def emit(obj) -> None:
     print(json.dumps(obj, ensure_ascii=False, indent=2))
+
+
+def default_host() -> str:
+    """Printer address from ZEBRA_HOST so callers need not repeat --host."""
+    return os.environ.get("ZEBRA_HOST", "").strip()
 
 
 def save_zpl(zpl: str, out: str) -> None:
@@ -112,7 +122,11 @@ def cmd_status(a) -> int:
         return 0
     except ImportError:
         pass                      # no MCP SDK (or no server module) -> local read
-    emit(read_status(a.host, a.port, a.timeout))
+    host = a.host or default_host()
+    if not host:
+        emit({"ok": False, "error": "no printer address: pass --host or set ZEBRA_HOST"})
+        return 1
+    emit(read_status(host, a.port, a.timeout))
     return 0
 
 
@@ -242,6 +256,74 @@ def cmd_print(a) -> int:
     return 0 if res.get("ok", True) else 1
 
 
+def cmd_printers(a) -> int:
+    res = transport.list_windows_printers()
+    emit({"ok": True, "count": len(res), "printers": res})
+    return 0
+
+
+def cmd_photo(a) -> int:
+    """Photo of an existing label -> ZPL (and optionally print it).
+
+    Text comes from the local PP-OCRv4 weights shipped in vendor/data/ocr;
+    barcode payload always comes from zxing decoding, never from a model.
+    """
+    try:
+        from zebra_mcp import photo
+    except ImportError as exc:
+        emit({"ok": False, "error": f"photo pipeline unavailable: {exc}",
+              "hint": "run scripts/setup.py to install opencv-python-headless / "
+                      "numpy / onnxruntime / zxing-cpp"})
+        return 1
+    if not Path(a.image).is_file():
+        emit({"ok": False, "error": f"image not found: {a.image}"})
+        return 1
+    try:
+        res = photo.convert(
+            a.image, width_mm=a.width, height_mm=a.height, dpi=a.dpi,
+            frame=a.frame, use_ocr=not a.no_ocr, font_file=a.font,
+            paper_mm=a.paper, paper_height_mm=a.paper_height,
+            offset_x_mm=a.offset_x, offset_y_mm=a.offset_y)
+    except Exception as exc:
+        emit({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        return 1
+
+    zpl = res.get("zpl", "")
+    check = builder.validate_zpl(zpl) if zpl else []
+    errs = errors_of(check)
+    preview = None
+    if a.preview or a.dry_run:
+        try:
+            from zebra_mcp import render as renderer
+            png = Path(a.preview or "scratch/photo_preview.png")
+            png.parent.mkdir(parents=True, exist_ok=True)
+            preview = renderer.render(zpl, scale=a.scale, out=str(png)).get("png") or str(png)
+        except Exception as exc:
+            preview = f"unavailable: {type(exc).__name__}"
+    if a.out and zpl:
+        save_zpl(zpl, a.out)
+
+    out = {"ok": not errs, "zpl": zpl, "elements": res.get("elements", []),
+           "warnings": res.get("warnings", []), "issues": check,
+           "preview": preview, "out": a.out or None}
+    if errs:
+        out["stage"] = "validate"
+        emit(out)
+        return 1
+
+    host = a.host or default_host()
+    if a.dry_run or not host:
+        out.update({"dry_run": True,
+                    "note": "nothing sent" if a.dry_run else "no --host and no ZEBRA_HOST set"})
+        emit(out)
+        return 0
+    res_send = transport.send_tcp(host, zpl, port=a.port, timeout=a.timeout)
+    out.update({"stage": "sent", "host": host, "send": res_send})
+    out["ok"] = res_send.get("ok", True)
+    emit(out)
+    return 0 if out["ok"] else 1
+
+
 # ---------------------------------------------------------------- parser
 
 def main() -> int:
@@ -265,7 +347,7 @@ def main() -> int:
     r.set_defaults(fn=cmd_render)
 
     s = sub.add_parser("status", help="printer reachability + status word")
-    s.add_argument("--host", required=True)
+    s.add_argument("--host", default="", help="printer IP (default: ZEBRA_HOST)")
     s.add_argument("--port", type=int, default=9100)
     s.add_argument("--timeout", type=float, default=5.0)
     s.set_defaults(fn=cmd_status)
@@ -292,7 +374,35 @@ def main() -> int:
     q.add_argument("--scale", type=int, default=2)
     q.set_defaults(fn=cmd_print)
 
+    ph = sub.add_parser("photo", help="photo of a label -> ZPL (and optionally print)")
+    ph.add_argument("image", help=".png/.jpg of the existing label")
+    ph.add_argument("--width", type=float, default=70.0, help="printed design width mm")
+    ph.add_argument("--height", type=float, default=70.0, help="printed design height mm")
+    ph.add_argument("--paper", type=float, default=0.0,
+                    help="physical paper width mm, when paper is larger than the design")
+    ph.add_argument("--paper-height", type=float, default=0.0,
+                    help="physical paper height mm (defaults to --paper)")
+    ph.add_argument("--offset-x", type=float, default=0.0, help="nudge all elements, mm")
+    ph.add_argument("--offset-y", type=float, default=0.0, help="nudge all elements, mm")
+    ph.add_argument("--dpi", type=int, default=203)
+    ph.add_argument("--frame", default="auto", choices=["auto", "full"])
+    ph.add_argument("--font", default="E:SIMSUN.TTF", help="resident TrueType font name")
+    ph.add_argument("--no-ocr", action="store_true", help="symbols only, no text")
+    ph.add_argument("--host", default="")
+    ph.add_argument("--port", type=int, default=9100)
+    ph.add_argument("--timeout", type=float, default=5.0)
+    ph.add_argument("--dry-run", action="store_true", help="do not print")
+    ph.add_argument("--out", help="save the generated .zpl here")
+    ph.add_argument("--preview", help="preview png path")
+    ph.add_argument("--scale", type=int, default=2)
+    ph.set_defaults(fn=cmd_photo)
+
+    lp = sub.add_parser("printers", help="list Windows printer queues")
+    lp.set_defaults(fn=cmd_printers)
+
     a = p.parse_args()
+    if a.cmd in ("send", "print", "photo") and not getattr(a, "host", ""):
+        a.host = default_host()
     return a.fn(a)
 
 

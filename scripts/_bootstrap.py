@@ -1,12 +1,17 @@
-"""Locate the zebra_mcp engine (the zebra-printer-mcp repo) and import it.
+"""Locate the zebra_mcp engine and import it.
 
-This skill drives the engine from zebra-printer-mcp; it carries no engine copy.
+This skill ships its own copy of the engine under ``vendor/src/zebra_mcp`` so it
+works on a clean machine with no second repository and no MCP client — that copy
+is always preferred. The external checkout is only a development fallback (so a
+fix can be tested against the upstream tree without copying files around).
+
 Search order:
-  1. ZEBRA_MCP_SRC env var (directory that contains the `zebra_mcp` package)
-  2. <skill>/../zebra-printer-mcp/src      (side-by-side checkout)
-  3. <skill>/../../zebra-printer-mcp/src   (skill nested under workspace/)
-  4. ZEBRA_MCP_HOME or ~/workspace/zebra-printer-mcp/src, E:/workspace/...
-If none found, the error text tells the user exactly what to clone and set.
+  1. <skill>/vendor/src                     vendored copy — the normal case
+  2. ZEBRA_MCP_SRC env var                  explicit override (development)
+  3. <skill>/../zebra-printer-mcp/src       side-by-side checkout
+  4. <skill>/../../zebra-printer-mcp/src
+  5. ZEBRA_MCP_HOME/src, ~/workspace/..., E:/workspace/...
+If none is found the error says exactly what is missing.
 """
 from __future__ import annotations
 
@@ -15,8 +20,10 @@ import sys
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parents[1]
+VENDOR_SRC = SKILL_DIR / "vendor" / "src"
 
 _CANDIDATES = [
+    str(VENDOR_SRC),
     os.environ.get("ZEBRA_MCP_SRC", ""),
     str(SKILL_DIR.parent / "zebra-printer-mcp" / "src"),
     str(SKILL_DIR.parent.parent / "zebra-printer-mcp" / "src"),
@@ -31,11 +38,16 @@ def engine_src() -> Path:
         if c and (Path(c) / "zebra_mcp" / "__init__.py").is_file():
             return Path(c)
     raise SystemExit(
-        "zebra_mcp engine not found. Clone https://github.com/benyshen/zebra-printer-mcp\n"
-        "and point ZEBRA_MCP_SRC at its src/ directory (see README.md).")
+        "zebra_mcp engine not found.\n"
+        f"  expected the vendored copy at: {VENDOR_SRC}\n"
+        "  This skill ships the engine; if it is missing, re-install the skill\n"
+        "  (the vendor/ directory was not copied). For development you can also\n"
+        "  point ZEBRA_MCP_SRC at a zebra-printer-mcp checkout's src/ directory.")
 
 
 def import_engine():
+    """Import the light modules (stdlib only). Heavy ones — render/photo/ocr —
+    pull in pillow/cv2/onnxruntime, so import those at the call site instead."""
     src = str(engine_src())
     if src not in sys.path:
         sys.path.insert(0, src)
@@ -49,3 +61,11 @@ def engine_version() -> str:
         return __version__
     except Exception:
         return "?"
+
+
+def vendored() -> bool:
+    """True when the engine came from this skill's own vendor/ copy."""
+    try:
+        return engine_src().resolve() == VENDOR_SRC.resolve()
+    except SystemExit:
+        return False
