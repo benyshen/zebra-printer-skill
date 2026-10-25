@@ -16,8 +16,9 @@ Subcommands (all print JSON on stdout, exit 1 on error):
   xlsx      <file.xlsx> [--name-column A --id-column B]
                                                 one label per row (name + Code128), one ZPL stream
 
-The engine ships inside this skill (vendor/src), so no second repository and no
-MCP client are needed. ZEBRA_HOST sets the default printer address.
+The engine is the zpl-core package, installed from the pinned wheel in
+vendor/wheels by scripts/setup.py — no second repository, no MCP client, no
+network needed for the engine itself. ZEBRA_HOST sets the default printer address.
 """
 
 from __future__ import annotations
@@ -28,10 +29,8 @@ import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import _bootstrap  # noqa: E402
-
-builder, catalog, knowledge, transport = _bootstrap.import_engine()
+# 引擎是独立包 zpl-core（setup.py 从 vendor/wheels 装进 .venv），这里不再拼 sys.path
+from zpl_core import builder, catalog, knowledge, transport  # noqa: E402
 
 
 # ---------------------------------------------------------------- helpers
@@ -92,19 +91,13 @@ def cmd_validate(a) -> int:
 
 def cmd_render(a) -> int:
     try:
-        from zebra_mcp import render as renderer
+        from zpl_core import render as renderer
     except ImportError as exc:
         # Distinguish "module not shipped/vendored" from "module present but the
         # optional image libs are missing" — the old message blamed the extra
         # even when render.py was simply absent.
-        msg = str(exc)
-        if "zebra_mcp.render" in msg or "cannot import name" in msg:
-            emit({"ok": False, "error": f"render module not available: {msg}. "
-                  "The engine checkout (or a vendored copy) must include "
-                  "src/zebra_mcp/render.py."})
-        else:
-            emit({"ok": False, "error": f"render needs the image libs: {msg}. "
-                  "Install them: pip install -e '.[render]' in the engine checkout."})
+        emit({"ok": False, "error": f"render unavailable: {exc}. "
+              "Run scripts/setup.py — it installs zpl-core[all] from vendor/wheels."})
         return 1
     zpl = read_text(a.file)
     result = renderer.render(zpl, scale=max(1, a.scale), out=a.out or None)
@@ -113,22 +106,10 @@ def cmd_render(a) -> int:
 
 
 def cmd_status(a) -> int:
-    """Query status. Prefer the engine's own printer_status so the ~HS parsing
-    (~HS line 3, STX/ETX framed) is not duplicated; that lives in
-    zebra_mcp.server, which imports FastMCP — so fall back to a local read when
-    the MCP SDK is not installed."""
-    try:
-        from zebra_mcp import server as _server
-        fn = getattr(_server, "printer_status", None)
-        if fn is None:
-            raise ImportError("printer_status missing from zebra_mcp.server")
-        print(fn(host=a.host, port=a.port, timeout=a.timeout))
-        return 0
-    except ImportError:
-        pass                      # no MCP SDK (or no server module) -> local read
+    """~HI / ~HS probe through the engine's transport layer (no MCP SDK involved)."""
     host = a.host or default_host()
     if not host:
-        emit({"ok": False, "error": "no printer address: pass --host or set ZEBRA_HOST"})
+        emit({"ok": False, "error": "no printer address: pass --host <ip> or set ZEBRA_HOST"})
         return 1
     emit(read_status(host, a.port, a.timeout))
     return 0
@@ -205,7 +186,7 @@ def cmd_send(a) -> int:
         return 1
     if a.dry_run:
         try:
-            from zebra_mcp import render as renderer
+            from zpl_core import render as renderer
             png = Path(a.out or "scratch/label.png")
             png.parent.mkdir(parents=True, exist_ok=True)
             renderer.render(zpl, out=str(png))
@@ -249,7 +230,7 @@ def cmd_print(a) -> int:
         save_zpl(zpl, a.out)
     preview = None
     try:
-        from zebra_mcp import render as renderer
+        from zpl_core import render as renderer
         png = Path(a.preview or "scratch/preview.png")
         png.parent.mkdir(parents=True, exist_ok=True)
         result = renderer.render(zpl, scale=a.scale, out=str(png))
@@ -338,7 +319,7 @@ def cmd_xlsx(a) -> int:
     All labels go out as ONE ZPL stream on ONE TCP connection, so the printer
     echo is read once instead of once per label.
     """
-    from zebra_mcp import xlsx_batch
+    from zpl_core import xlsx_batch
 
     path = a.xlsx
     if not path.lower().endswith((".xlsx", ".xlsm")):
@@ -387,7 +368,7 @@ def cmd_xlsx(a) -> int:
 
     preview = None
     try:                                          # preview of the FIRST label only
-        from zebra_mcp import render as renderer
+        from zpl_core import render as renderer
         png = Path(a.preview or "scratch/xlsx_first.png")
         png.parent.mkdir(parents=True, exist_ok=True)
         res = renderer.render(first_label, scale=a.scale, out=str(png))
@@ -426,7 +407,7 @@ def cmd_photo(a) -> int:
     barcode payload always comes from zxing decoding, never from a model.
     """
     try:
-        from zebra_mcp import photo
+        from zpl_core import photo
     except ImportError as exc:
         emit({"ok": False, "error": f"photo pipeline unavailable: {exc}",
               "hint": "run scripts/setup.py to install opencv-python-headless / "
@@ -451,7 +432,7 @@ def cmd_photo(a) -> int:
     preview = None
     if a.preview or a.dry_run:
         try:
-            from zebra_mcp import render as renderer
+            from zpl_core import render as renderer
             png = Path(a.preview or "scratch/photo_preview.png")
             png.parent.mkdir(parents=True, exist_ok=True)
             preview = renderer.render(zpl, scale=a.scale, out=str(png)).get("png") or str(png)

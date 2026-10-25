@@ -1,6 +1,6 @@
 ---
 name: zebra-printer-skill
-version: 0.3.0
+version: 0.4.0
 author: Hermes (Nous Research)
 license: MIT
 description: 打 ZPL 标签、把标签照片转成 ZPL、用自然语言打标签时加载。自带引擎与 OCR 模型，只需一次 setup，不依赖其它仓库或 MCP 客户端。
@@ -17,14 +17,14 @@ metadata:
 - 要在已有标签上改字号、换品名、挪位置，重新出图。
 - 要查某条 ZPL 命令、某个条码制式的参数位序、某个问题码是什么意思。
 
-**本 skill 自带引擎和 OCR 模型**（`vendor/`），不依赖 `zebra-printer-mcp`，也不需要注册任何 MCP 服务器。装好即用。
+**引擎随 skill 走**：`vendor/wheels/` 里是 [zpl-core](https://github.com/benyshen/zpl-core) 的 wheel（含 OCR 模型），`setup.py` 离线装进 `.venv` 并校验哈希。不依赖 `zebra-printer-mcp`，不需要注册任何 MCP 服务器。装好即用。
 
 **不适用**：RFID 编码、打印机 SNMP 监控、`^GF` 位图流 / `~DG` 字体下载、跨打印机并发调度。
 
 ## 一次性安装
 
 ```bash
-python scripts/setup.py          # 建 .venv 并装 7 个包（首次约 80 MB，1-3 分钟）
+python scripts/setup.py          # 建 .venv、校验并装 zpl-core wheel、装 7 个依赖（首次约 95 MB，1-3 分钟）
 python scripts/setup.py --check  # 只检查，不安装
 ```
 
@@ -171,9 +171,7 @@ $PY scripts/label.py knowledge --mode list       # 253 个命令字
 |---|---|
 | `scripts/setup.py` | 建 `.venv` + 装依赖；`--check` 只检查 |
 | `scripts/label.py` | `photo` / `build` / `validate` / `render` / `status` / `send` / `print` / `printers` / `knowledge` / `xlsx` |
-| `scripts/_bootstrap.py` | 定位并导入内置引擎（`vendor/src` 优先） |
-| `vendor/src/zebra_mcp/` | 引擎本体（10 个模块，无 `server.py`：不需要 MCP） |
-| `vendor/data/` | 命令目录 253 条 + PP-OCRv4 模型（15 MB） |
+| `vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` | 引擎本体（wheel，14.1 MB）：10 个模块 + 253 条命令目录 + PP-OCRv4 模型，装进 `.venv` 的 site-packages |
 | `references/spec-schema.md` | label spec 全键表：20 顶层键、7 种 field type、28 制式位序与默认值 |
 | `references/calibration.md` | 照片复刻六条校准规则（实机验证） |
 | `templates/` | 两张 70x70 标签（ZR668 实机确认"输出完全正确"） |

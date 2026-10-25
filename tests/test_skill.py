@@ -17,9 +17,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
-import _bootstrap  # noqa: E402
+import zpl_core  # noqa: E402
 
 
 def line(t: str) -> None:
@@ -33,31 +32,31 @@ def strip_comments(text: str) -> str:
 # ---------------------------------------------------------------- 1. layout
 
 line("layout")
-ENGINE_MODULES = ["__init__", "builder", "catalog", "knowledge", "transport",
-                  "render", "photo", "ocr", "vision", "xlsx_batch"]
 required = [
     "SKILL.md", "README.md", "LICENSE", ".gitignore", "requirements.txt",
     "docs/install.md", "vendor/PROVENANCE.md",
-    "scripts/setup.py", "scripts/label.py", "scripts/_bootstrap.py",
+    "scripts/setup.py", "scripts/label.py",
     "references/calibration.md", "references/spec-schema.md",
     "templates/warehouse-label-70x70.zpl", "templates/photo-reprint-70x70.zpl",
     "examples/warehouse-70x70.spec.json", "examples/product-70x70.spec.json",
+    "examples/employees.xlsx",
     "tests/test_skill.py",
-    "vendor/data/command_catalog.txt",
-    "vendor/data/ocr/ch_PP-OCRv4_det_infer.onnx",
-    "vendor/data/ocr/ch_PP-OCRv4_rec_infer.onnx",
-    "vendor/data/ocr/ppocr_keys_v1.txt",
-] + [f"vendor/src/zebra_mcp/{m}.py" for m in ENGINE_MODULES]
+    "vendor/wheels/zpl_core-0.1.0-py3-none-any.whl",
+]
 for rel in required:
     p = ROOT / rel
     assert p.is_file(), f"missing required file: {rel}"
     assert p.stat().st_size > 0, f"empty file: {rel}"
 print(f"{len(required)} required files present")
 
-# the vendored engine must not carry the MCP server (no mcp dependency at all)
-assert not (ROOT / "vendor" / "src" / "zebra_mcp" / "server.py").exists(), \
-    "vendor must not include server.py (it would drag in the mcp SDK)"
-print("no server.py in vendor (no MCP SDK needed)")
+# 引擎只有一个来源：vendor/wheels 里的 wheel。仓库里不许再出现源码副本。
+assert not (ROOT / "vendor" / "src").exists(), \
+    "vendor/src must not exist anymore — the engine is the zpl-core wheel, not a source fork"
+assert not (ROOT / "scripts" / "_bootstrap.py").exists(), \
+    "scripts/_bootstrap.py is gone: zpl_core is a normal installed package now"
+assert not (ROOT / "vendor" / "data").exists(), \
+    "vendor/data is gone: the command catalog and OCR weights ship inside the wheel"
+print("no source fork in vendor/ (wheel only), no bootstrap shim, no loose data")
 
 # ---------------------------------------------------------------- 2. frontmatter
 
@@ -81,22 +80,31 @@ missing = sorted(p for p in mentioned if not (ROOT / p).exists())
 assert not missing, f"SKILL.md points at files that do not exist: {missing}"
 print(f"{len(mentioned)} referenced paths all exist")
 
-# ---------------------------------------------------------------- 3. engine is the vendored one
+# ---------------------------------------------------------------- 3. engine is the pinned wheel
 
 line("engine resolution")
-src = _bootstrap.engine_src()
-assert src.resolve() == (ROOT / "vendor" / "src").resolve(), \
-    f"engine must resolve to the vendored copy, got {src}"
-assert _bootstrap.vendored(), "vendored() must report True"
-builder, catalog, knowledge, transport = _bootstrap.import_engine()
-print("engine", _bootstrap.engine_version(), "from", src)
+import hashlib
 
-# prove the outside world is not consulted: blank every non-vendor candidate
-saved = list(_bootstrap._CANDIDATES)
-_bootstrap._CANDIDATES = [c for c in saved if "vendor" in c.replace("\\", "/")]
-assert _bootstrap.engine_src().resolve() == (ROOT / "vendor" / "src").resolve()
-_bootstrap._CANDIDATES = saved
-print("resolves with every external candidate removed")
+setup_src = (ROOT / "scripts" / "setup.py").read_text(encoding="utf-8")
+pinned_sha = re.search(r'ENGINE_SHA256\s*=\s*"([0-9a-f]{64})"', setup_src).group(1)
+pinned_wheel = re.search(r'ENGINE_WHEEL\s*=\s*"([^"]+)"', setup_src).group(1)
+
+wheel = ROOT / "vendor" / "wheels" / pinned_wheel
+actual_sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
+assert actual_sha == pinned_sha, f"wheel hash drifted: {actual_sha} != {pinned_sha}"
+print(f"wheel {pinned_wheel} sha256 ok ({wheel.stat().st_size/1048576:.1f} MB)")
+
+engine_dir = Path(zpl_core.__file__).resolve().parent
+assert zpl_core.__version__ == "0.1.0", zpl_core.__version__
+assert "site-packages" in str(engine_dir), f"unexpected engine location: {engine_dir}"
+assert f"{os.sep}vendor{os.sep}" not in str(engine_dir), \
+    f"engine must not come from vendor/: {engine_dir}"
+data_dir = str(Path(zpl_core.DATA_DIR).resolve())
+assert "site-packages" in data_dir and f"{os.sep}vendor{os.sep}" not in data_dir, \
+    f"engine data must ship inside the installed wheel, got {data_dir}"
+from zpl_core import builder, catalog, knowledge, transport  # noqa: E402,F401
+print(f"engine {zpl_core.__version__} from {engine_dir}")
+print(f"engine data inside the wheel: {zpl_core.DATA_DIR}")
 
 # ---------------------------------------------------------------- 4. barcode tables agree
 
@@ -161,7 +169,7 @@ print(f"calibration sections {nums}; template citations resolve")
 
 line("photo pipeline")
 try:
-    from zebra_mcp import photo, ocr
+    from zpl_core import photo, ocr
 except ImportError as exc:
     raise SystemExit(f"photo pipeline not importable ({exc}) — run scripts/setup.py")
 models = Path(ocr.models_dir())
@@ -172,7 +180,7 @@ print("photo/ocr import ok; models at", models)
 assert callable(photo.convert)
 
 line("render")
-from zebra_mcp import render as renderer
+from zpl_core import render as renderer
 out = ROOT / "scratch" / "test_render.png"
 out.parent.mkdir(parents=True, exist_ok=True)
 res = renderer.render(zpl, scale=2, out=str(out))

@@ -59,11 +59,14 @@ C:\Users\<用户名>\AppData\Local\hermes\skills\zebra-printer-skill
 python scripts/setup.py
 ```
 
-它做三件事，全部幂等：
+它做四件事，全部幂等：
 
-1. 在 `.venv/` 建独立虚拟环境（不碰系统 site-packages，不需要管理员权限）；
-2. 升级 venv 里的 pip，按 `requirements.txt` 装 7 个包；
-3. 打印 `READY:` 加解释器路径。
+1. **校验引擎 wheel**：`vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` 的 sha256 必须等于 `setup.py` 里的常量，不匹配直接拒绝安装；
+2. 在 `.venv/` 建独立虚拟环境（不碰系统 site-packages，不需要管理员权限）；
+3. 先 `--no-index --no-deps` 把引擎 wheel 装进 venv（离线，不联网），再按 `requirements.txt` 装 7 个运行期依赖；
+4. 打印 `READY:` 加解释器路径。
+
+引擎是独立包 [zpl-core](https://github.com/benyshen/zpl-core)，wheel 里同时带着 253 条命令目录和 PP-OCRv4 权重，所以装完就能查手册、能认字，不需要额外下载模型。
 
 成功输出末尾形如：
 
@@ -85,6 +88,8 @@ python scripts/setup.py --check
 ```
 
 ### 依赖清单
+
+wheel 之外的 7 个包（都由 `requirements.txt` 管；引擎本身不在这里）：
 
 | 包 | 用途 | 缺了会怎样 |
 |---|---|---|
@@ -196,13 +201,13 @@ zebra-printer-skill/
 ├── requirements.txt            7 个运行期依赖
 ├── docs/install.md             本文件
 ├── scripts/
-│   ├── setup.py                建 .venv + 装依赖（--check 只检查）
-│   ├── label.py                全部子命令的唯一入口，输出 JSON
-│   └── _bootstrap.py           定位并导入内置引擎
+│   ├── setup.py                建 .venv + 校验 wheel 哈希 + 装引擎与依赖
+│   └── label.py                全部子命令的唯一入口，输出 JSON
 ├── vendor/
-│   ├── PROVENANCE.md           引擎来源、与上游的同步方法
-│   ├── src/zebra_mcp/          引擎 10 个模块（无 server.py：不需要 MCP）
-│   └── data/                   253 条命令目录 + PP-OCRv4 模型（15 MB）
+│   ├── PROVENANCE.md           引擎 wheel 的来源、哈希、升级步骤
+│   └── wheels/
+│       └── zpl_core-0.1.0-py3-none-any.whl   引擎本体（14.1 MB）
+│                                              含 253 条命令目录 + PP-OCRv4 模型
 ├── references/
 │   ├── spec-schema.md          label spec 全键表、28 种条码位序
 │   └── calibration.md          照片复刻六条校准规则
@@ -211,7 +216,9 @@ zebra-printer-skill/
 └── tests/test_skill.py         自检
 ```
 
-`vendor/src/zebra_mcp` 与 `vendor/data` 的相对位置是硬约束（引擎按 `parents[2]/data` 找命令目录），别拆开搬动。
+引擎是**普通安装的包**：`scripts/setup.py` 把 `vendor/wheels/` 里的 wheel 装进 `.venv/Lib/site-packages`，数据跟着包走（`zpl_core/data/`）。所以不再有"vendor/src 与 vendor/data 必须保持相对位置"这种约束——`label.py` 直接 `from zpl_core import ...`，不需要任何 `sys.path` 拼接。
+
+`setup.py` 装之前会校验 wheel 的 sha256；哈希对不上直接拒绝安装（防止 vendor 里的引擎被悄悄换掉）。升级步骤见 `vendor/PROVENANCE.md`。
 
 ---
 

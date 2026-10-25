@@ -98,11 +98,11 @@ A 列文字、B 列条码，一行一条标签。整批拼成**一条 ZPL 流、
 | `SKILL.md` | 触发条件、安装、三条主任务、停止判据、七条纪律 |
 | `references/spec-schema.md` | label spec 全键表 + 28 制式位序 |
 | `references/calibration.md` | 照片复刻六条校准规则（实机 99%） |
-| `vendor/src/zebra_mcp/` | 引擎本体，10 个模块，无 MCP 服务端 |
-| `vendor/data/` | 命令目录 253 条 + PP-OCRv4 模型 15 MB |
+| `vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` | 引擎本体（wheel，14.1 MB，含命令目录与 OCR 模型） |
+
 | `templates/` | 两张实机验证过的 70×70 标签 |
 | `examples/` | 商品标签 spec + 渲染图 + 员工表样例（`xlsx` 用） |
-| `scripts/` | `setup.py` / `label.py` / `_bootstrap.py` |
+| `scripts/` | `setup.py`（建 venv + 校验 wheel 哈希）/ `label.py`（10 个子命令） |
 | `tests/test_skill.py` | 自检 |
 
 ## 自检

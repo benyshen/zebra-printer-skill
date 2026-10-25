@@ -1,37 +1,54 @@
-# vendor/ — 内置引擎的来源与同步方式
+# vendor/ 里放什么，为什么，怎么换
 
-这里是从 [`zebra-printer-mcp`](https://github.com/benyshen/zebra-printer-mcp) 复制过来的引擎，
-目的是让本 skill **脱离原仓库、脱离 MCP 客户端**独立运行。
+这里只有一样东西：**zpl-core 引擎的 wheel**。
 
-## 内容
-
-| 路径 | 来源 | 说明 |
-|---|---|---|
-| `src/zebra_mcp/{builder,knowledge,catalog,transport,render,photo,ocr,vision,xlsx_batch,__init__}.py` | 上游 `src/zebra_mcp/` | **不含 `server.py`**：那是 MCP 服务端外壳，会引入 `mcp` SDK 依赖 |
-| `data/command_catalog.txt` | 上游 `data/` 同名文件 | 253 条 ZPL 命令目录，1.25 KB |
-| `data/ocr/*.onnx`, `ppocr_keys_v1.txt` | PaddleOCR PP-OCRv4 (Apache-2.0) | 15 MB，为「装上就能认字」而随包分发 |
-
-布局不能改：`knowledge.py` 用 `Path(__file__).parents[2] / "data"` 找数据目录，
-所以必须是 `vendor/src/zebra_mcp/` + 同级 `vendor/data/`。改布局会让命令目录退化到 33 条，
-校验器连 `^XA`/`^FO` 都会报未知。
-
-## 上游改了怎么同步
-
-```bash
-UPSTREAM=/path/to/zebra-printer-mcp
-for f in __init__ builder catalog knowledge transport render photo ocr vision xlsx_batch; do
-  cp "$UPSTREAM/src/zebra_mcp/$f.py" vendor/src/zebra_mcp/
-done
-cp "$UPSTREAM/data/command_catalog.txt" vendor/data/
-# 模型只需在换版本时更新
-.venv/Scripts/python.exe tests/test_skill.py     # 必须仍然 ALL CHECKS PASSED
+```
+vendor/wheels/zpl_core-0.1.0-py3-none-any.whl   14.1 MB
+sha256  3f7e2575b153fc8a902ce80a3abdf15bea4dda30e76a59a2e0bb1a8f990f1a0a
 ```
 
-同步后请**只改本仓库的流程层**（`scripts/label.py`、`SKILL.md`、`references/`），
-不要在 `vendor/` 里打补丁——否则下次同步会覆盖掉。真需要改引擎行为，改上游仓库再同步过来。
+## 为什么是 wheel，不是源码副本
 
-## 已知分叉风险
+v0.3.0 及以前，这里放的是 `vendor/src/zebra_mcp/` —— 10 个引擎模块的手工副本。它能用，但有两个问题：
 
-这是刻意的取舍：换来「一个目录装完就能用」，代价是上游修复不会自动进来。
-`tests/test_skill.py` 里的断言（28 种条码三表同集合、模板可校验、spec 与模板逐字节一致）
-就是为了让「同步了一半」这种状态在测试里暴露出来。
+1. **代码分叉**。上游修 bug 不会自动进来，得手工同步，同步一半就静默漂移。
+2. **审计不了**。副本长得像源码，看起来可改，改了就成了第二份实现。
+
+wheel 是**构建产物**：不可编辑、有版本号、有哈希。skill 装的永远和 zpl-core 仓库 `v0.1.0` 发布的一致。
+
+## 数据在哪
+
+以前 `vendor/data/` 放命令目录和 PP-OCRv4 权重，现在它们在 **wheel 里**（`zpl_core/data/`），随包安装：
+`command_catalog.txt`（253 条）、`ocr/*.onnx`（14.9 MB）。skill 目录因此少了 15 MB 的散落文件。
+
+## 升级引擎的步骤
+
+```bash
+# 1. 从 zpl-core 源码构建（hatchling 后端）
+cd /e/workspace/zpl-core
+git pull                        # 或切到目标 tag
+.venv/Scripts/python.exe -m pip wheel . -w dist --no-deps
+# → dist/zpl_core-0.2.0-py3-none-any.whl
+
+# 2. 换进 skill，改三个常量
+cp dist/zpl_core-0.2.0-py3-none-any.whl ../zebra-printer-skill/vendor/wheels/
+rm ../zebra-printer-skill/vendor/wheels/zpl_core-0.1.0-*.whl
+# scripts/setup.py：ENGINE_WHEEL / ENGINE_SHA256 / ENGINE_REQ 三行
+sha256sum ../zebra-printer-skill/vendor/wheels/zpl_core-0.2.0-py3-none-any.whl
+
+# 3. 重装并自检
+.venv/Scripts/python.exe scripts/setup.py     # 会先校验哈希，不匹配直接拒绝
+.venv/Scripts/python.exe tests/test_skill.py
+```
+
+`setup.py` 在装之前校验 sha256，不匹配就**拒绝安装**——防止"vendor 里的 wheel 被悄悄换掉"。
+
+## 校验
+
+- `tests/test_skill.py` 断言：wheel 存在、哈希等于 `setup.py` 里的常量、`zpl_core` 解析到 `.venv` 的 site-packages 而**不是** skill 目录内、仓库里没有 `vendor/src`。 
+- 装完跑 `setup.py --check`：报告引擎版本与导入路径。
+
+## 相关仓库
+
+- 引擎：https://github.com/benyshen/zpl-core（MIT）
+- MCP 外壳：https://github.com/benyshen/zebra-printer-mcp（MIT，依赖同一个包）
