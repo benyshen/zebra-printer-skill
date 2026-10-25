@@ -174,7 +174,7 @@ $PY scripts/label.py knowledge --mode list       # 253 个命令字
 | `vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` | 引擎本体（wheel，14.1 MB）：10 个模块 + 253 条命令目录 + PP-OCRv4 模型，装进 `.venv` 的 site-packages |
 | `references/spec-schema.md` | label spec 全键表：20 顶层键、7 种 field type、28 制式位序与默认值 |
 | `references/calibration.md` | 照片复刻六条校准规则（实机验证） |
-| `templates/` | 两张 70x70 标签（ZR668 实机确认"输出完全正确"） |
+| `templates/` | 两张 70x70 标签，ZR668 实机确认；`photo-reprint` 含表格框（两轮实机校准版） |
 | `examples/warehouse-70x70.spec.json` | 上面那张标签的 spec，可直接改 |
 | `examples/product-70x70.spec.json` | 表格框商品标签（品名/五月花矿泉水/EAN-13），实机打印过 |
 | `examples/employees.xlsx` | `xlsx` 子命令的样例表：A 列姓名、B 列工号，3 行 |
