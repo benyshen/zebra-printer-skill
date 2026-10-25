@@ -1,6 +1,6 @@
 """One-shot setup for the zebra-printer skill.
 
-Creates <skill>/.venv, installs the pinned zpl-core wheel from vendor/wheels
+Creates <skill>/.venv, installs zpl-core from PyPI (falls back to the pinned wheel in vendor/wheels)
 (offline, no second repository), then its runtime deps from requirements.txt.
 Idempotent: re-running only installs what is missing.
 
@@ -32,7 +32,7 @@ WHEEL_DIR = SKILL / "vendor" / "wheels"
 # Upgrading the engine = drop a new wheel in and update these two lines
 # (vendor/PROVENANCE.md has the rebuild steps).
 ENGINE_WHEEL = "zpl_core-0.1.0-py3-none-any.whl"
-ENGINE_SHA256 = "3f7e2575b153fc8a902ce80a3abdf15bea4dda30e76a59a2e0bb1a8f990f1a0a"
+ENGINE_SHA256 = "3fbe0e56fd40a04d0d801f1e6c5a45e2dba6da7f6fa17178e5f68d8b40354894"
 ENGINE_REQ = "zpl-core==0.1.0"
 
 # import name -> pip requirement (they differ for a few packages)
@@ -96,13 +96,12 @@ def create_venv() -> Path:
     return py
 
 
-def verify_wheel() -> Path:
+def verify_wheel() -> Path | None:
+    """校验 vendor 里的兜底 wheel。缺失时返回 None（在线可从 PyPI 装），哈希不符仍然拒绝。"""
     wheel = WHEEL_DIR / ENGINE_WHEEL
     if not wheel.is_file():
-        raise SystemExit(
-            f"engine wheel missing: {wheel}\n"
-            "  vendor/wheels/ was not copied with the skill, or the filename changed.\n"
-            "  Rebuild it from https://github.com/benyshen/zpl-core (see vendor/PROVENANCE.md).")
+        print(f"note: vendored wheel not found ({wheel.name}) — will install from PyPI")
+        return None
     digest = hashlib.sha256(wheel.read_bytes()).hexdigest()
     if digest != ENGINE_SHA256:
         raise SystemExit(
@@ -114,26 +113,42 @@ def verify_wheel() -> Path:
     return wheel
 
 
-def install(py: Path) -> None:
-    cmds = [
-        [str(py), "-m", "pip", "install", "--upgrade", "pip", "--quiet"],
-        # offline first: the engine wheel alone, dependencies untouched
-        [str(py), "-m", "pip", "install", "--no-index", "--no-deps",
-         "--find-links", str(WHEEL_DIR), ENGINE_REQ],
-        # then the runtime deps (network unless already present)
-        [str(py), "-m", "pip", "install", "-r", str(REQ)],
-    ]
-    for c in cmds:
-        print("$", " ".join(c[1:]))
-        r = subprocess.run(c)
-        if r.returncode != 0:
-            raise SystemExit(f"pip failed (exit {r.returncode})")
+def _run(c: list[str]) -> bool:
+    print("$", " ".join(c[1:]))
+    return subprocess.run(c).returncode == 0
+
+
+def install_engine(py: Path, offline: bool, wheel: Path | None) -> None:
+    """PyPI 优先；连不上或指定 --offline 时用 vendor/wheels 里哈希已验过的那份。"""
+    if not offline:
+        if _run([str(py), "-m", "pip", "install", "--quiet", "--upgrade", ENGINE_REQ]):
+            print(f"engine installed from PyPI: {ENGINE_REQ}")
+            return
+        print("PyPI install failed — falling back to the vendored wheel")
+    if wheel is None:
+        raise SystemExit(
+            "no engine available: PyPI unreachable and vendor/wheels/ has no wheel.\n"
+            "  Rebuild it from https://github.com/benyshen/zpl-core (see vendor/PROVENANCE.md).")
+    if not _run([str(py), "-m", "pip", "install", "--no-index", "--no-deps",
+                 "--find-links", str(WHEEL_DIR), ENGINE_REQ]):
+        raise SystemExit("pip failed to install the vendored engine wheel")
+    print(f"engine installed from vendored wheel: {wheel.name}")
+
+
+def install(py: Path, offline: bool = False) -> None:
+    _run([str(py), "-m", "pip", "install", "--upgrade", "pip", "--quiet"])
+    wheel = verify_wheel()
+    install_engine(py, offline, wheel)
+    if not _run([str(py), "-m", "pip", "install", "-r", str(REQ)]):
+        raise SystemExit("pip failed installing runtime requirements")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="report only, install nothing")
+    ap.add_argument("--offline", action="store_true",
+                    help="install the engine from vendor/wheels only, never touch PyPI")
     a = ap.parse_args()
 
     py = venv_python(VENV)
@@ -152,10 +167,12 @@ def main() -> int:
         print("READY:", py)
         return 0
 
-    verify_wheel()
+    wheel = verify_wheel()
+    if a.offline and wheel is None:
+        raise SystemExit("--offline given but vendor/wheels/ has no engine wheel")
     py = create_venv()
     if missing(py) or engine_problem(py):
-        install(py)
+        install(py, offline=a.offline)
     miss = missing(py)
     problem = engine_problem(py)
     if miss:

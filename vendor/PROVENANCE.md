@@ -3,9 +3,17 @@
 这里只有一样东西：**zpl-core 引擎的 wheel**。
 
 ```
-vendor/wheels/zpl_core-0.1.0-py3-none-any.whl   14.1 MB
-sha256  3f7e2575b153fc8a902ce80a3abdf15bea4dda30e76a59a2e0bb1a8f990f1a0a
+vendor/wheels/zpl_core-0.1.0-py3-none-any.whl   13.8 MB
+sha256  3fbe0e56fd40a04d0d801f1e6c5a45e2dba6da7f6fa17178e5f68d8b40354894
 ```
+
+这个哈希与 PyPI 上 `zpl_core-0.1.0-py3-none-any.whl` 的 sha256 **完全相同**——也就是说，`setup.py` 从 PyPI 装的那份和这里兜底的那份是同一个文件，不是两次构建。
+
+zpl-core 已发布到 PyPI（https://pypi.org/project/zpl-core/），所以这里的作用从"唯一来源"变成"离线兜底"：
+
+- 有网：`setup.py` 直接 `pip install zpl-core==0.1.0`，vendor 里的 wheel 只用来核验（哈希不符仍然拒绝安装）
+- 无网：`python scripts/setup.py --offline` 强制用这份 wheel，`--no-index --no-deps` 不碰网络
+- wheel 被删掉也能装（在线场景），`--offline` 下缺 wheel 直接报错并提示重建
 
 ## 为什么是 wheel，不是源码副本
 

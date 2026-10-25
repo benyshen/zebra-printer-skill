@@ -13,7 +13,7 @@
 | 操作系统 | Windows 10/11（主力验证平台）；macOS / Linux 理论可用，未实机验证 |
 | Python | **3.10 以上**。实测 3.14.5（python.org 安装包）与 3.14.7（uv 下载）均可 |
 | 磁盘 | 约 400 MB（源码 16 MB + 虚拟环境与依赖约 350 MB） |
-| 网络 | 首次安装需能访问 PyPI；装完后**完全离线可用**（引擎、命令目录、OCR 模型、字体调用全在本地） |
+| 网络 | 首次安装需访问 PyPI（引擎 + 7 个依赖）；全程离线也可用 `--offline` 走仓库内 wheel；装完后**完全离线可用**（引擎、命令目录、OCR 模型、字体调用全在本地） |
 | 打印机 | Zebra 打印机，网络（TCP 9100）/ Windows 打印队列 / USB 三种接法任选其一 |
 | 不需要 | 不需要 `zebra-printer-mcp`，不需要 MCP 客户端，不需要注册任何服务 |
 
@@ -63,7 +63,7 @@ python scripts/setup.py
 
 1. **校验引擎 wheel**：`vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` 的 sha256 必须等于 `setup.py` 里的常量，不匹配直接拒绝安装；
 2. 在 `.venv/` 建独立虚拟环境（不碰系统 site-packages，不需要管理员权限）；
-3. 先 `--no-index --no-deps` 把引擎 wheel 装进 venv（离线，不联网），再按 `requirements.txt` 装 7 个运行期依赖；
+3. 装引擎：默认从 PyPI 装 `zpl-core==0.1.0`；连不上 PyPI 或加 `--offline` 时退到 `vendor/wheels` 里那份（`--no-index --no-deps`，哈希已校验）；再按 `requirements.txt` 装 7 个运行期依赖；
 4. 打印 `READY:` 加解释器路径。
 
 引擎是独立包 [zpl-core](https://github.com/benyshen/zpl-core)，wheel 里同时带着 253 条命令目录和 PP-OCRv4 权重，所以装完就能查手册、能认字，不需要额外下载模型。
