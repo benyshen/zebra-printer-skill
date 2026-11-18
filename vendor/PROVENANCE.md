@@ -7,12 +7,11 @@ vendor/wheels/zpl_core-0.2.0-py3-none-any.whl   13.8 MB
 sha256  1e363faba5bfb1c9bb300cd7eb3b34a4fe2260156d92bedb0bfcf6c1f038fb50
 ```
 
-**0.2.0 尚未发布到 PyPI**：这份 wheel 由本机的 zpl-core 源码 `uv build` 构建（MIT，同名 tag 尚未打）。
-发布到 PyPI 之后，这份哈希应当与 `pip download zpl-core==0.2.0` 拿到的 wheel 一致；一旦不一致，
-说明有两次构建，按下面的步骤重来一遍并更新这里的哈希。
+这个哈希与 PyPI 上 `zpl_core-0.2.0-py3-none-any.whl` 的 sha256 **完全相同**——也就是说，
+`setup.py` 从 PyPI 装的那份和这里兜底的那份是同一个文件，不是两次构建（0.2.0 已发布于
+https://pypi.org/project/zpl-core/0.2.0/ ，2026-11-18）。
 
-zpl-core 的 0.1.0 / 0.1.1 在 PyPI（https://pypi.org/project/zpl-core/），所以 vendor 的作用是
-"离线兜底 + 版本锁定"：
+zpl-core 的 0.1.0 与 0.2.0 在 PyPI，所以 vendor 的作用是"离线兜底 + 版本锁定"：
 
 - 有网：`setup.py` 直接 `pip install zpl-core==0.2.0`，vendor 里的 wheel 只用来核验（哈希不符仍然拒绝安装）
 - 无网：`python scripts/setup.py --offline` 强制用这份 wheel，`--no-index --no-deps` 不碰网络
