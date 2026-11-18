@@ -31,9 +31,9 @@ WHEEL_DIR = SKILL / "vendor" / "wheels"
 # The engine is a real package now: one pinned wheel, verified by hash.
 # Upgrading the engine = drop a new wheel in and update these two lines
 # (vendor/PROVENANCE.md has the rebuild steps).
-ENGINE_WHEEL = "zpl_core-0.1.0-py3-none-any.whl"
-ENGINE_SHA256 = "3fbe0e56fd40a04d0d801f1e6c5a45e2dba6da7f6fa17178e5f68d8b40354894"
-ENGINE_REQ = "zpl-core==0.1.0"
+ENGINE_WHEEL = "zpl_core-0.2.0-py3-none-any.whl"
+ENGINE_SHA256 = "1e363faba5bfb1c9bb300cd7eb3b34a4fe2260156d92bedb0bfcf6c1f038fb50"
+ENGINE_REQ = "zpl-core==0.2.0"
 
 # import name -> pip requirement (they differ for a few packages)
 CHECKS = {
@@ -75,8 +75,8 @@ def engine_problem(py: Path) -> str:
     if out.returncode != 0:
         return ""          # not installed at all -> missing() already reports it
     info = json.loads(out.stdout.strip().splitlines()[-1])
-    if info["v"] != "0.1.0":
-        return f"zpl-core {info['v']} installed, expected 0.1.0"
+    if info["v"] != "0.2.0":
+        return f"zpl-core {info['v']} installed, expected 0.2.0"
     # .venv 本身就在 skill 目录下，所以不能拿"路径含 skill 目录"当判据：
     # 真正要排除的是 vendor/ 里的源码副本和任何 sys.path 注入。
     if "site-packages" not in info["p"] or f"{os.sep}vendor{os.sep}" in info["p"]:

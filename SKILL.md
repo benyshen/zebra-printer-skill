@@ -171,7 +171,7 @@ $PY scripts/label.py knowledge --mode list       # 253 个命令字
 |---|---|
 | `scripts/setup.py` | 建 `.venv` + 装依赖；`--check` 只检查 |
 | `scripts/label.py` | `photo` / `build` / `validate` / `render` / `status` / `send` / `print` / `printers` / `knowledge` / `xlsx` |
-| `vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` | 引擎本体（wheel，14.1 MB）：10 个模块 + 253 条命令目录 + PP-OCRv4 模型，装进 `.venv` 的 site-packages |
+| `vendor/wheels/zpl_core-0.2.0-py3-none-any.whl` | 引擎本体（wheel，14.5 MB）：10 个模块 + 224 条命令表 + 71 条详解 + PP-OCRv4 模型，装进 `.venv` 的 site-packages |
 | `references/spec-schema.md` | label spec 全键表：20 顶层键、7 种 field type、28 制式位序与默认值 |
 | `references/calibration.md` | 照片复刻六条校准规则（实机验证） |
 | `templates/` | 两张 70x70 标签，ZR668 实机确认；`photo-reprint` 含表格框（两轮实机校准版） |

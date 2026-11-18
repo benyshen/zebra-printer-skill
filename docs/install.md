@@ -61,12 +61,12 @@ python scripts/setup.py
 
 它做四件事，全部幂等：
 
-1. **校验引擎 wheel**：`vendor/wheels/zpl_core-0.1.0-py3-none-any.whl` 的 sha256 必须等于 `setup.py` 里的常量，不匹配直接拒绝安装；
+1. **校验引擎 wheel**：`vendor/wheels/zpl_core-0.2.0-py3-none-any.whl` 的 sha256 必须等于 `setup.py` 里的常量，不匹配直接拒绝安装；
 2. 在 `.venv/` 建独立虚拟环境（不碰系统 site-packages，不需要管理员权限）；
-3. 装引擎：默认从 PyPI 装 `zpl-core==0.1.0`；连不上 PyPI 或加 `--offline` 时退到 `vendor/wheels` 里那份（`--no-index --no-deps`，哈希已校验）；再按 `requirements.txt` 装 7 个运行期依赖；
+3. 装引擎：默认从 PyPI 装 `zpl-core==0.2.0`；连不上 PyPI 或加 `--offline` 时退到 `vendor/wheels` 里那份（`--no-index --no-deps`，哈希已校验）；再按 `requirements.txt` 装 7 个运行期依赖；
 4. 打印 `READY:` 加解释器路径。
 
-引擎是独立包 [zpl-core](https://github.com/benyshen/zpl-core)，wheel 里同时带着 253 条命令目录和 PP-OCRv4 权重，所以装完就能查手册、能认字，不需要额外下载模型。
+引擎是独立包 [zpl-core](https://github.com/benyshen/zpl-core)，wheel 里同时带着 224 条命令表 + 71 条详解和 PP-OCRv4 权重，所以装完就能查手册、能认字，不需要额外下载模型。
 
 成功输出末尾形如：
 
@@ -206,8 +206,8 @@ zebra-printer-skill/
 ├── vendor/
 │   ├── PROVENANCE.md           引擎 wheel 的来源、哈希、升级步骤
 │   └── wheels/
-│       └── zpl_core-0.1.0-py3-none-any.whl   引擎本体（14.1 MB）
-│                                              含 253 条命令目录 + PP-OCRv4 模型
+│       └── zpl_core-0.2.0-py3-none-any.whl   引擎本体（14.5 MB）
+│                                              含 224 条命令表 + 71 条详解 + PP-OCRv4 模型
 ├── references/
 │   ├── spec-schema.md          label spec 全键表、28 种条码位序
 │   └── calibration.md          照片复刻六条校准规则

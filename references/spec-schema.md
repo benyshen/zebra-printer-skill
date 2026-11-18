@@ -52,40 +52,41 @@
 
 ---
 
-## 3. 28 种条码（key / 命令 / 位序 / 默认）
+## 3. 29 种条码（key / 命令 / 位序 / 默认）
 
 `symbology` 用小写 key。**字母位序按各制式自己的 `Format:` 行**，不能套 `^BC` 的 `o,h,f,g,e`。
 
 | key | 名称 | 命令 | 手册页 | 参数位序 | 默认值 |
 |---|---|---|---|---|---|
-| `aztec` | Aztec | `^BO` | p.124 | a,b,c,d,e,f,g | a=N b=2 c=N d=0 e=N |
-| `codabar` | Codabar | `^BK` | p.118 | o,e,h,f,g,k,l | o=N e=N f=Y g=N k=A l=A |
-| `codablock` | CODABLOCK | `^BB` | p.99 | o,h,s,c,r,m | o=N h=8 s=Y m=A |
-| `code11` | Code 11 | `^B1` | p.72 | o,e,h,f,g | o=N e=N f=Y g=N |
-| `code128` | Code 128 / GS1-128 | `^BC` | p.94 | o,h,f,g,e,m | o=N f=Y g=N e=N m=N |
-| `code39` | Code 39 | `^B3` | p.70 | o,e,h,f,g | o=N e=N f=Y g=N |
-| `code49` | Code 49 | `^B4` | p.74 | o,h,f,m | o=N f=N m=2 |
-| `code93` | Code 93 | `^BA` | p.87 | o,h,f,g,e | o=N f=Y g=N e=N |
-| `datamatrix` | Data Matrix | `^BX` | p.144 | o,h,s,c,r | o=N s=200 c=0 r=1 |
-| `ean13` | EAN-13 | `^BE` | p.109 | o,h,f,g | o=N f=Y g=N |
-| `ean8` | EAN-8 | `^B8` | p.83 | o,h,f,g | o=N f=Y g=N |
+| `aztec` | Aztec | `^BO` | p.124 | a,b,c,d,e,f,g | c=N d=0 e=N f=1 |
+| `codabar` | ANSI Codabar | `^BK` | p.118 | o,e,h,f,g,k,l | e=N f=Y g=N k=A l=A |
+| `codablock` | CODABLOCK | `^BB` | p.90 | o,h,s,c,r,m | o=N h=8 s=Y m=F |
+| `code11` | Code 11 | `^B1` | p.66 | o,e,h,f,g | e=N f=Y g=N |
+| `code128` | Code 128 | `^BC` | p.94 | o,h,f,g,e,m | f=Y g=N e=N m=N |
+| `code39` | Code 39 | `^B3` | p.70 | o,e,h,f,g | e=N f=Y g=N |
+| `code49` | Code 49 | `^B4` | p.74 | o,h,f,m | f=N m=A |
+| `code93` | Code 93 | `^BA` | p.87 | o,h,f,g,e | f=Y g=N e=N |
+| `datamatrix` | Data Matrix | `^BX` | p.144 | o,h,s,c,r,f,g,a | s=0 f=6 g=~ a=1 |
+| `ean13` | EAN-13 | `^BE` | p.109 | o,h,f,g | f=Y g=N |
+| `ean8` | EAN-8 | `^B8` | p.83 | o,h,f,g | f=Y g=N |
 | `gs1databar` | GS1 DataBar | `^BR` | p.135 | a,b,c,d,e,f | a=R b=1 d=1 e=25 f=22 |
-| `i2of5` | Interleaved 2 of 5 | `^B2` | p.68 | o,h,f,g,e,j | o=N f=Y g=N e=N j=N |
-| `industrial2of5` | Industrial 2 of 5 | `^BI` | p.114 | o,h,f,g | o=N f=Y g=N |
-| `logmars` | LOGMARS | `^BL` | p.120 | o,h,g | o=N g=N |
-| `micropdf417` | MicroPDF417 | `^BF` | p.111 | o,h,m | o=N m=0 |
-| `msi` | MSI | `^BM` | p.122 | o,e,h,f,g,E | o=N e=B f=Y g=N E=N |
-| `pdf417` | PDF417 | `^B7` | p.79 | o,h,s,c,r,t | o=N s=0 c=1 r=3 t=N |
-| `planet` | Planet Code | `^B5` | p.78 | o,h,f,g | o=N f=N g=N |
-| `plessey` | Plessey | `^BP` | p.126 | o,e,h,f,g | o=N e=N f=Y g=N |
-| `postnet` | POSTNET | `^BZ` | p.150 | o,h,f,g,t | o=N f=N g=N t=0 |
-| `qrcode` | QR Code | `^BQ` | p.128 | a,b,c,d,e | a=N b=2 c=0 d=Q e=7 |
-| `std2of5` | Standard 2 of 5 | `^BJ` | p.116 | o,h,f,g | o=N f=Y g=N |
-| `upca` | UPC-A | `^B9` | p.85 | o,h,f,g,e | o=N f=Y g=N e=N |
-| `upce` | UPC-E | `^B0` | p.66 | o,e,h,f,g | o=N e=N f=Y g=N |
-| `upcext` | UPC/EAN add-on | `^BS` | p.137 | o,h,f,g | o=N f=Y g=Y |
+| `i2of5` | Interleaved 2 of 5 | `^B2` | p.68 | o,h,f,g,e,j | f=Y g=N e=N |
+| `industrial2of5` | Industrial 2 of 5 | `^BI` | p.114 | o,h,f,g | f=Y g=N |
+| `logmars` | LOGMARS | `^BL` | p.120 | o,h,g | g=N |
+| `micropdf417` | MicroPDF417 | `^BF` | p.111 | o,h,m | m=0 |
+| `msi` | MSI | `^BM` | p.122 | o,e,h,f,g,e2 | e=B f=Y g=N e2=N |
+| `pdf417` | PDF417 | `^B7` | p.79 | o,h,s,c,r,t | s=0 c=1 r=3 t=N |
+| `planet` | Planet Code | `^B5` | p.78 | o,h,f,g | f=N g=N |
+| `plessey` | Plessey | `^BP` | p.126 | o,e,h,f,g | e=N f=Y g=N |
+| `postnet` | POSTNET | `^BZ` | p.150 | o,h,f,g,t | f=N g=N t=0 |
+| `qrcode` | QR Code | `^BQ` | p.128 | a,b,c,d,e | b=2 d=Q e=7 |
+| `std2of5` | Standard 2 of 5 | `^BJ` | p.116 | o,h,f,g | f=Y g=N |
+| `tlc39` | TLC39 | `^BT` | p.140 | o,w1,r1,h1,w2,h2 | — |
+| `upca` | UPC-A | `^BU` | p.142 | o,h,f,g,e | f=Y g=N e=Y |
+| `upce` | UPC-E | `^B9` | p.85 | o,h,f,g,e | f=Y g=N e=Y |
+| `upcext` | UPC/EAN Extensions | `^BS` | p.137 | o,h,f,g | f=Y g=Y |
 | `upsmaxicode` | UPS MaxiCode | `^BD` | p.106 | m,n,t | m=2 n=1 t=1 |
-| `usps` | USPS IM Barcode | `^BZ` | p.150 | o,h,f,g,t | o=N f=N g=N t=3 |
+| `usps` | USPS IM Barcode | `^BZ` | p.150 | o,h,f,g,t | f=N g=N t=3 |
 
 ### 通用条码键
 
@@ -97,21 +98,29 @@
 
 | 制式 | 专属键 |
 |---|---|
-| `datamatrix` | `module_size_dots`(1–25)、`quality`(0/50/80/100/140/200)、`columns`、`rows` |
-| `qrcode` | `scale`(1–100)、`ec_level`(H/Q/M/L)、`model`(1/2)、`mask`(0–7) |
-| `pdf417` | `security_level`、`columns`、`row_ratio` |
+| `datamatrix` | `module_size_dots`（模块/行高，`h`）、`quality`(0/50/80/100/140/200)、`columns`、`rows`、`format_id`(1–6)、`escape_char`(默认 `~`)、`aspect_ratio`(1 方 / 2 长) |
+| `qrcode` | `scale`(1–100)、`ec_level`(H/Q/M/L)、`model`(1/2)、`mask`(0–7)、`input_mode`(A/M)、`char_mode`(N/A/Bxxxx/K，**M 模式必填**)、`mixed_mode`{code_no,divisions,parity} |
+| `pdf417` | `security_level`(0–8)、`columns`、`row_ratio`、`truncate` |
 | `micropdf417` | `mode`(0–33) —— **不是** PDF417 的 s/c/r |
 | `gs1databar` | `symbology_type`(1–12)、`magnification`、`separator_height`、`segment_width`；**高度走 `e` 位**，不在 `h` |
-| `code49` | `interpret_pos`(N/A/B)、`mode` |
-| `codablock` | `security`(Y/N)、`columns`、`rows`、`mode`(A/E/F) |
+| `code49` | `interpret_pos`(N/A/B)、`mode`(A 或 0–5) |
+| `codablock` | `security`(Y/N)、`columns`、`rows`、`mode`(A/E/F，默认 F) |
 | `codabar` | `start_char`、`stop_char`(A–D) |
 | `upsmaxicode` | `mode`、`symbol_number`、`total_symbols`（**没有方向参数**） |
-| `msi` | `check_digit`(A/B/C/D) |
+| `msi` | `check_digit`(A/B/C/D，默认 B)、`insert_check_digit`（发 `e2`） |
+| `code128` | `mode`(N/U/A/**D** = UCC/EAN 模式) |
+| `aztec` | `scale`、`eci`、`error_control`、`menu_symbol`、`symbols`、`id_field` |
+| `tlc39` | `w1,r1,h1,w2,h2` 走 `module_width`/`bar_height` 之外的专用键 |
 
-### 两个必须记住的数据规则
+### 三条必须记住的数据规则
 
-- **QR `^FD` 必须以 `<纠错级><输入模式>,` 开头**（手册 p.129 标 Mandatory）。`qrcode` 会自动加，等价 `^FDQA,<data>`（H 级时 `^FDHA,`）。手写 ZPL 时漏了，码扫不出来但语法不报错。
-- **GS1 DataMatrix 没有单独的 key**：用 `datamatrix`，数据前面加 FNC1 转义 `>8`（手册：FNC1 由 `>8` 调用，插在 AI 前）。
+- **QR `^FD` 必须以 `<纠错级><输入模式>,` 开头**（手册 p.129 标 Mandatory）。`qrcode` 会自动加，
+  等价 `^FDQA,<data>`（H 级时 `^FDHA,`）；`input_mode="M"` 时还要紧跟字符模式（`^FDQM,N12345`）。
+  手写 ZPL 漏了，码扫不出来但语法不报错。
+- **零售码位数是精确的**：UPC-A 恰好 11 位、UPC-E 10 位、EAN-13 12 位、EAN-8 7 位、UPC/EAN 扩展
+  2 或 5 位。校验位由打印机算，多给一位会被左补零截断，数字整体错位。
+- **GS1 的 FNC1 分两种**：Data Matrix（`^BX` 质量 200）用转义字符 **`_1`**（老固件 `~1`）；
+  Code 128 的 UCC/EAN 模式用 **`>8`**（`^BC` 的 `m=D` 会自动插）。两者不能互换。
 
 ---
 

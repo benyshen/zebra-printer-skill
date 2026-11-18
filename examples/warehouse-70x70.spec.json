@@ -14,7 +14,7 @@
      "font_file": "E:SIMSUN.TTF", "size_dots": 32},
     {"type": "text", "data": "五朵花纯净水", "x_dots": 40, "y_dots": 196,
      "font_file": "E:SIMSUN.TTF", "size_dots": 43},
-    {"type": "barcode", "symbology": "ean13", "data": "6934024512123",
+    {"type": "barcode", "symbology": "ean13", "data": "693402451212",
      "x_dots": 137, "y_dots": 312, "height_dots": 112,
      "module_width": 3, "module_ratio": 3, "bar_height": 10}
   ]

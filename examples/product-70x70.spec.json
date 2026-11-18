@@ -14,7 +14,7 @@
     {"type": "text", "data": "五月花矿泉水", "x_dots": 40, "y_dots": 175,
      "font_file": "E:SIMSUN.TTF", "size_dots": 60},
 
-    {"type": "barcode", "symbology": "ean13", "data": "6934024512123",
+    {"type": "barcode", "symbology": "ean13", "data": "693402451212",
      "x_dots": 137, "y_dots": 300, "height_dots": 170,
      "module_width": 3, "module_ratio": 3}
   ]

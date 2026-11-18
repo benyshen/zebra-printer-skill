@@ -3,15 +3,18 @@
 这里只有一样东西：**zpl-core 引擎的 wheel**。
 
 ```
-vendor/wheels/zpl_core-0.1.0-py3-none-any.whl   13.8 MB
-sha256  3fbe0e56fd40a04d0d801f1e6c5a45e2dba6da7f6fa17178e5f68d8b40354894
+vendor/wheels/zpl_core-0.2.0-py3-none-any.whl   13.8 MB
+sha256  1e363faba5bfb1c9bb300cd7eb3b34a4fe2260156d92bedb0bfcf6c1f038fb50
 ```
 
-这个哈希与 PyPI 上 `zpl_core-0.1.0-py3-none-any.whl` 的 sha256 **完全相同**——也就是说，`setup.py` 从 PyPI 装的那份和这里兜底的那份是同一个文件，不是两次构建。
+**0.2.0 尚未发布到 PyPI**：这份 wheel 由本机的 zpl-core 源码 `uv build` 构建（MIT，同名 tag 尚未打）。
+发布到 PyPI 之后，这份哈希应当与 `pip download zpl-core==0.2.0` 拿到的 wheel 一致；一旦不一致，
+说明有两次构建，按下面的步骤重来一遍并更新这里的哈希。
 
-zpl-core 已发布到 PyPI（https://pypi.org/project/zpl-core/），所以这里的作用从"唯一来源"变成"离线兜底"：
+zpl-core 的 0.1.0 / 0.1.1 在 PyPI（https://pypi.org/project/zpl-core/），所以 vendor 的作用是
+"离线兜底 + 版本锁定"：
 
-- 有网：`setup.py` 直接 `pip install zpl-core==0.1.0`，vendor 里的 wheel 只用来核验（哈希不符仍然拒绝安装）
+- 有网：`setup.py` 直接 `pip install zpl-core==0.2.0`，vendor 里的 wheel 只用来核验（哈希不符仍然拒绝安装）
 - 无网：`python scripts/setup.py --offline` 强制用这份 wheel，`--no-index --no-deps` 不碰网络
 - wheel 被删掉也能装（在线场景），`--offline` 下缺 wheel 直接报错并提示重建
 
@@ -22,20 +25,20 @@ v0.3.0 及以前，这里放的是 `vendor/src/zebra_mcp/` —— 10 个引擎�
 1. **代码分叉**。上游修 bug 不会自动进来，得手工同步，同步一半就静默漂移。
 2. **审计不了**。副本长得像源码，看起来可改，改了就成了第二份实现。
 
-wheel 是**构建产物**：不可编辑、有版本号、有哈希。skill 装的永远和 zpl-core 仓库 `v0.1.0` 发布的一致。
+wheel 是**构建产物**：不可编辑、有版本号、有哈希。skill 装的永远和 zpl-core 仓库 `v0.2.0` 那棵源码构建出来的一致。
 
 ## 数据在哪
 
 以前 `vendor/data/` 放命令目录和 PP-OCRv4 权重，现在它们在 **wheel 里**（`zpl_core/data/`），随包安装：
-`command_catalog.txt`（253 条）、`ocr/*.onnx`（14.9 MB）。skill 目录因此少了 15 MB 的散落文件。
+`commands.json`（224 条手册命令：页码 + Format 参数）、`command_catalog.txt`（旧版兜底）、`ocr/*.onnx`（14.9 MB）。skill 目录因此少了 15 MB 的散落文件。
 
 ## 升级引擎的步骤
 
 ```bash
-# 1. 从 zpl-core 源码构建（hatchling 后端）
+# 1. 从 zpl-core 源码构建（hatchling 后端，uv build 最省事）
 cd /e/workspace/zpl-core
 git pull                        # 或切到目标 tag
-.venv/Scripts/python.exe -m pip wheel . -w dist --no-deps
+uv build                        # -> dist/zpl_core-<ver>-py3-none-any.whl
 # → dist/zpl_core-0.2.0-py3-none-any.whl
 
 # 2. 换进 skill，改三个常量

@@ -41,7 +41,7 @@ required = [
     "examples/warehouse-70x70.spec.json", "examples/product-70x70.spec.json",
     "examples/employees.xlsx",
     "tests/test_skill.py",
-    "vendor/wheels/zpl_core-0.1.0-py3-none-any.whl",
+    "vendor/wheels/zpl_core-0.2.0-py3-none-any.whl",
 ]
 for rel in required:
     p = ROOT / rel
@@ -95,7 +95,7 @@ assert actual_sha == pinned_sha, f"wheel hash drifted: {actual_sha} != {pinned_s
 print(f"wheel {pinned_wheel} sha256 ok ({wheel.stat().st_size/1048576:.1f} MB)")
 
 engine_dir = Path(zpl_core.__file__).resolve().parent
-assert zpl_core.__version__ == "0.1.0", zpl_core.__version__
+assert zpl_core.__version__ == "0.2.0", zpl_core.__version__
 assert "site-packages" in str(engine_dir), f"unexpected engine location: {engine_dir}"
 assert f"{os.sep}vendor{os.sep}" not in str(engine_dir), \
     f"engine must not come from vendor/: {engine_dir}"
@@ -114,7 +114,7 @@ assert specs == cmds == notes, {
     "specs-only": sorted(specs - cmds), "cmds-only": sorted(cmds - specs),
     "notes-only": sorted(notes - specs), "specs-no-notes": sorted(specs - notes),
 }
-assert len(specs) == 28, f"expected 28 symbologies, got {len(specs)}: {sorted(specs)}"
+assert len(specs) == 29, f"expected 29 symbologies, got {len(specs)}: {sorted(specs)}"
 print(f"BARCODE_SPECS == BARCODE_CMDS == BARCODE_NOTES ({len(specs)} entries)")
 
 schema = (ROOT / "references" / "spec-schema.md").read_text(encoding="utf-8")
@@ -211,9 +211,9 @@ def run_cli(args: list[str]) -> dict:
 
 line("knowledge")
 lst = run_cli(["knowledge", "--mode", "list"])
-assert lst["count"] == 253, lst["count"]
+assert lst["count"] == 224, lst["count"]
 bc = run_cli(["knowledge", "--mode", "barcodes"])
-assert len(bc["supported_by_build"]) == 28, len(bc["supported_by_build"])
+assert len(bc["supported_by_build"]) == 29, len(bc["supported_by_build"])
 assert set(bc["supported_by_build"]) == specs, "barcodes mode disagrees with BARCODE_SPECS"
 by = run_cli(["knowledge", "BY"])
 assert by["found"] and by["syntax"].startswith("^BY"), by
@@ -222,7 +222,7 @@ sw = run_cli(["knowledge", "--mode", "sgd"])
 st = run_cli(["knowledge", "--mode", "status"])
 sr = run_cli(["knowledge", "darkness", "--mode", "search"])
 assert sw["count"] and st["count"] and sr["results"], (sw["count"], st["count"], sr["results"])
-print(f"list=253, barcodes=28, sgd={sw['count']}, status={st['count']}, "
+print(f"list=224, barcodes=29, sgd={sw['count']}, status={st['count']}, "
       f"search('darkness')={len(sr['results'])}, ^BY lookup ok")
 
 line("xlsx")
